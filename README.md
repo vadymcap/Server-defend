@@ -146,25 +146,3 @@ A fully customizable testing environment for experimenting with any architecture
 8.  **React to Events:** Watch the event bar - cost spikes mean hold off on purchases, traffic bursts mean ensure capacity.
 9.  **API Gateway for Graceful Degradation:** Throttled requests only lose -0.2 reputation (vs -1.0 for failures). Great for surviving traffic spikes!
 10. **Split DB Traffic with NoSQL:** Route READ/WRITE to NoSQL (faster, cheaper) and keep SQL DB for SEARCH queries only.
-
-## Tech Stack
-
-- **Core:** Vanilla JavaScript (ES6+)
-- **Rendering:** [Three.js](https://threejs.org/) for 3D visualization.
-- **Styling:** [Tailwind CSS](https://tailwindcss.com/) for the glassmorphism UI.
-- **Build:** No build step required! Just standard HTML/CSS/JS.
-
-## Getting Started
-
-1.  Clone the repository.
-2.  Open `index.html` in your modern web browser.
-3.  Start building your cloud empire!
-
-## Community
-
-Join our Discord server to discuss strategies and share your high scores:
-[Join Discord](https://discord.gg/f38NgHDwnK)
-
----
-
-_Built with code and chaos._
