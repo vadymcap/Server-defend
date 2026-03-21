@@ -29,7 +29,9 @@ class I18nManager {
     }
 
     t(key, variables = {}) {
-        let text = this.translations[this.currentLocale][key] || key;
+        const localeTable = this.translations[this.currentLocale] || {};
+        const fallbackTable = this.translations.en || {};
+        let text = localeTable[key] ?? fallbackTable[key] ?? key;
         
         // Handle variable interpolation
         Object.keys(variables).forEach(varName => {

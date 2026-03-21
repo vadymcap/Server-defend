@@ -1,6 +1,10 @@
-const TUTORIAL_STORAGE_KEY = 'serverSurvivalTutorialComplete';
+function getTutorialStorageKey() {
+    return STATE?.gameMode === 'mlops'
+        ? 'serverSurvivalTutorialComplete_mlops'
+        : 'serverSurvivalTutorialComplete';
+}
 
-function getTutorialSteps() {
+function getClassicTutorialSteps() {
     return [
     {
         id: 'welcome',
@@ -172,6 +176,152 @@ function getTutorialSteps() {
     ];
 }
 
+function getMLOpsTutorialSteps() {
+    return [
+    {
+        id: 'mlops-welcome',
+        title: i18n.t('mlops_tut_welcome_title'),
+        text: i18n.t('mlops_tut_welcome_text'),
+        icon: '🤖',
+        highlight: null,
+        action: 'next',
+        position: 'center',
+        hint: i18n.t('mlops_tut_welcome_hint')
+    },
+    {
+        id: 'mlops-traffic',
+        title: i18n.t('mlops_tut_traffic_title'),
+        text:
+            '<div class="space-y-2 text-left text-sm">' +
+            `<div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-blue-400 inline-block"></span><span class="text-blue-400 font-bold w-16">${i18n.t('mlops_tut_traffic_realtime')}</span><span class="text-gray-300">${i18n.t('mlops_tut_traffic_realtime_desc')}</span></div>` +
+            `<div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-orange-400 inline-block"></span><span class="text-orange-400 font-bold w-16">${i18n.t('mlops_tut_traffic_train')}</span><span class="text-gray-300">${i18n.t('mlops_tut_traffic_train_desc')}</span></div>` +
+            `<div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-green-400 inline-block"></span><span class="text-green-400 font-bold w-16">${i18n.t('mlops_tut_traffic_batch')}</span><span class="text-gray-300">${i18n.t('mlops_tut_traffic_batch_desc')}</span></div>` +
+            `<div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-400 inline-block"></span><span class="text-red-400 font-bold w-16">${i18n.t('mlops_tut_traffic_adv')}</span><span class="text-gray-300">${i18n.t('mlops_tut_traffic_adv_desc')}</span></div>` +
+            '</div>',
+        icon: '📊',
+        highlight: null,
+        action: 'next',
+        position: 'center',
+        hint: i18n.t('mlops_tut_traffic_hint')
+    },
+    {
+        id: 'mlops-place-pipeline',
+        title: i18n.t('mlops_tut_place_pipeline_title'),
+        text: i18n.t('mlops_tut_place_pipeline_text'),
+        icon: '🧪',
+        highlight: 'tool-waf',
+        action: 'place_waf',
+        hint: i18n.t('mlops_tut_place_pipeline_hint')
+    },
+    {
+        id: 'mlops-connect-pipeline',
+        title: i18n.t('mlops_tut_connect_pipeline_title'),
+        text: i18n.t('mlops_tut_connect_pipeline_text'),
+        icon: '🔗',
+        highlight: 'tool-connect',
+        action: 'connect_internet_waf',
+        hint: i18n.t('mlops_tut_connect_pipeline_hint')
+    },
+    {
+        id: 'mlops-place-router',
+        title: i18n.t('mlops_tut_place_router_title'),
+        text: i18n.t('mlops_tut_place_router_text'),
+        icon: '🧭',
+        highlight: 'tool-alb',
+        action: 'place_alb',
+        hint: i18n.t('mlops_tut_place_router_hint')
+    },
+    {
+        id: 'mlops-connect-router',
+        title: i18n.t('mlops_tut_connect_router_title'),
+        text: i18n.t('mlops_tut_connect_router_text'),
+        icon: '🔗',
+        highlight: 'tool-connect',
+        action: 'connect_waf_alb',
+        hint: i18n.t('mlops_tut_connect_router_hint')
+    },
+    {
+        id: 'mlops-place-endpoint',
+        title: i18n.t('mlops_tut_place_endpoint_title'),
+        text: i18n.t('mlops_tut_place_endpoint_text'),
+        icon: '⚡',
+        highlight: 'tool-lambda',
+        action: 'place_compute',
+        hint: i18n.t('mlops_tut_place_endpoint_hint')
+    },
+    {
+        id: 'mlops-connect-endpoint',
+        title: i18n.t('mlops_tut_connect_endpoint_title'),
+        text: i18n.t('mlops_tut_connect_endpoint_text'),
+        icon: '🔗',
+        highlight: 'tool-connect',
+        action: 'connect_alb_compute',
+        hint: i18n.t('mlops_tut_connect_endpoint_hint')
+    },
+    {
+        id: 'mlops-place-feature-store',
+        title: i18n.t('mlops_tut_place_feature_title'),
+        text: i18n.t('mlops_tut_place_feature_text'),
+        icon: '🗂',
+        highlight: 'tool-cache',
+        action: 'place_cache',
+        hint: i18n.t('mlops_tut_place_feature_hint')
+    },
+    {
+        id: 'mlops-connect-feature-store',
+        title: i18n.t('mlops_tut_connect_feature_title'),
+        text: i18n.t('mlops_tut_connect_feature_text'),
+        icon: '🔗',
+        highlight: 'tool-connect',
+        action: 'connect_compute_cache',
+        hint: i18n.t('mlops_tut_connect_feature_hint')
+    },
+    {
+        id: 'mlops-place-training',
+        title: i18n.t('mlops_tut_place_training_title'),
+        text: i18n.t('mlops_tut_place_training_text'),
+        icon: '🏋',
+        highlight: 'tool-nosql',
+        action: 'place_nosql',
+        hint: i18n.t('mlops_tut_place_training_hint')
+    },
+    {
+        id: 'mlops-connect-training',
+        title: i18n.t('mlops_tut_connect_training_title'),
+        text: i18n.t('mlops_tut_connect_training_text'),
+        icon: '🔗',
+        highlight: 'tool-connect',
+        action: 'connect_compute_nosql',
+        hint: i18n.t('mlops_tut_connect_training_hint')
+    },
+    {
+        id: 'mlops-ready',
+        title: i18n.t('mlops_tut_ready_title'),
+        text: i18n.t('mlops_tut_ready_text'),
+        icon: '🚀',
+        highlight: 'btn-play',
+        action: 'start_game',
+        hint: i18n.t('mlops_tut_ready_hint')
+    },
+    {
+        id: 'mlops-complete',
+        title: i18n.t('mlops_tut_complete_title'),
+        text: i18n.t('mlops_tut_complete_text'),
+        icon: '🎉',
+        highlight: null,
+        action: 'finish',
+        position: 'center',
+        hint: i18n.t('mlops_tut_complete_hint')
+    }
+    ];
+}
+
+function getTutorialSteps() {
+    return STATE?.gameMode === 'mlops'
+        ? getMLOpsTutorialSteps()
+        : getClassicTutorialSteps();
+}
+
 class Tutorial {
     constructor() {
         this.currentStep = 0;
@@ -202,15 +352,15 @@ class Tutorial {
     }
 
     isCompleted() {
-        return localStorage.getItem(TUTORIAL_STORAGE_KEY) === 'true';
+        return localStorage.getItem(getTutorialStorageKey()) === 'true';
     }
 
     markCompleted() {
-        localStorage.setItem(TUTORIAL_STORAGE_KEY, 'true');
+        localStorage.setItem(getTutorialStorageKey(), 'true');
     }
 
     reset() {
-        localStorage.removeItem(TUTORIAL_STORAGE_KEY);
+        localStorage.removeItem(getTutorialStorageKey());
     }
 
     start() {
@@ -370,6 +520,12 @@ class Tutorial {
             case 'place_db':
                 actionMatches = actionType === 'place' && data.type === 'db';
                 break;
+            case 'place_cache':
+                actionMatches = actionType === 'place' && data.type === 'cache';
+                break;
+            case 'place_nosql':
+                actionMatches = actionType === 'place' && data.type === 'nosql';
+                break;
             case 'connect_internet_waf':
                 actionMatches = actionType === 'connect' && data.from === 'internet' && data.toType === 'waf';
                 break;
@@ -384,6 +540,12 @@ class Tutorial {
                 break;
             case 'connect_compute_db':
                 actionMatches = actionType === 'connect' && data.fromType === 'compute' && data.toType === 'db';
+                break;
+            case 'connect_compute_cache':
+                actionMatches = actionType === 'connect' && data.fromType === 'compute' && data.toType === 'cache';
+                break;
+            case 'connect_compute_nosql':
+                actionMatches = actionType === 'connect' && data.fromType === 'compute' && data.toType === 'nosql';
                 break;
             case 'place_cdn':
                 actionMatches = actionType === 'place' && data.type === 'cdn';
@@ -435,5 +597,5 @@ class Tutorial {
 window.tutorial = new Tutorial();
 window.resetTutorial = () => {
     window.tutorial.reset();
-    console.log('Tutorial reset. Start a new Survival game to see the tutorial.');
+    console.log('Tutorial reset. Start a new game mode to see its tutorial again.');
 };

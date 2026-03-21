@@ -67,7 +67,7 @@
         <!-- MAIN STATS -->
         <div id="statsPanel" class="hud-panel">
           <div class="hud-panel-header">
-            <span class="hud-label-accent">⬡ <span data-i18n="survival">SURVIVAL
+            <span class="hud-label-accent">⬡ <span id="mode-title" data-i18n="survival">SURVIVAL
                 PROTOCOL</span></span>
             <span class="hud-version">v2.1</span>
           </div>
@@ -117,7 +117,7 @@
         <!-- LOAD & TRAFFIC -->
         <div class="hud-panel">
           <div class="hud-panel-header">
-            <span class="hud-label">⟳ TRAFFIC MONITOR</span>
+            <span id="traffic-monitor-title" class="hud-label">⟳ TRAFFIC MONITOR</span>
           </div>
 
           <div class="stat-row">
@@ -176,33 +176,33 @@
             <tbody id="failures-tbody"
               class="[&>tr]:border-b [&>tr]:border-white/5 [&>tr>td]:py-0.5">
               <tr class="text-purple-400" id="fail-row-malicious">
-                <td data-i18n="fraud_leak">🛡 Fraud Leak</td>
+                <td id="fail-label-malicious" data-i18n="fraud_leak">🛡 Fraud Leak</td>
                 <td class="text-right" id="fail-malicious">0</td>
                 <td class="text-right text-red-400"
                   id="fail-malicious-rep">0</td>
               </tr>
               <tr class="text-green-400" id="fail-row-static">
-                <td data-i18n="fail_static">ST Static</td>
+                <td id="fail-label-static" data-i18n="fail_static">ST Static</td>
                 <td class="text-right" id="fail-static">0</td>
                 <td class="text-right text-red-400" id="fail-static-rep">0</td>
               </tr>
               <tr class="text-blue-400" id="fail-row-read">
-                <td data-i18n="fail_read">RD Read</td>
+                <td id="fail-label-read" data-i18n="fail_read">RD Read</td>
                 <td class="text-right" id="fail-read">0</td>
                 <td class="text-right text-red-400" id="fail-read-rep">0</td>
               </tr>
               <tr class="text-orange-400" id="fail-row-write">
-                <td data-i18n="fail_write">WR Write</td>
+                <td id="fail-label-write" data-i18n="fail_write">WR Write</td>
                 <td class="text-right" id="fail-write">0</td>
                 <td class="text-right text-red-400" id="fail-write-rep">0</td>
               </tr>
               <tr class="text-yellow-400" id="fail-row-upload">
-                <td data-i18n="fail_upload">UP Upload</td>
+                <td id="fail-label-upload" data-i18n="fail_upload">UP Upload</td>
                 <td class="text-right" id="fail-upload">0</td>
                 <td class="text-right text-red-400" id="fail-upload-rep">0</td>
               </tr>
               <tr class="text-cyan-400" id="fail-row-search">
-                <td data-i18n="fail_search">SR Search</td>
+                <td id="fail-label-search" data-i18n="fail_search">SR Search</td>
                 <td class="text-right" id="fail-search">0</td>
                 <td class="text-right text-red-400" id="fail-search-rep">0</td>
               </tr>
@@ -219,20 +219,20 @@
           <ul class="space-y-1.5 text-xs font-mono">
             <li class="obj-row">
               <span class="obj-dot obj-dot--red"></span>
-              <span data-i18n="survive_endless">Survive Endless Traffic</span>
+              <span id="objective-primary" data-i18n="survive_endless">Survive Endless Traffic</span>
             </li>
             <li id="goal-storage" class="obj-row">
               <span class="obj-dot obj-dot--green"></span>
-              <span data-i18n="route_storage">Route STATIC/UPLOAD →
+              <span id="objective-storage" data-i18n="route_storage">Route STATIC/UPLOAD →
                 Storage</span>
             </li>
             <li id="goal-db" class="obj-row">
               <span class="obj-dot obj-dot--blue"></span>
-              <span data-i18n="route_db">Route READ/WRITE/SEARCH → DB</span>
+              <span id="objective-db" data-i18n="route_db">Route READ/WRITE/SEARCH → DB</span>
             </li>
             <li id="goal-waf" class="obj-row">
               <span class="obj-dot obj-dot--purple"></span>
-              <span data-i18n="block_malicious">Block MALICIOUS with
+              <span id="objective-waf" data-i18n="block_malicious">Block MALICIOUS with
                 Firewall</span>
             </li>
           </ul>
@@ -251,12 +251,12 @@
           </div>
           <div class="space-y-1 text-xs font-mono">
             <div class="score-row">
-              <span class="text-emerald-400" data-i18n="storage_s3">Storage
+              <span id="score-label-storage" class="text-emerald-400" data-i18n="storage_s3">Storage
                 (S3)</span>
               <span id="score-storage" class="text-emerald-300">0</span>
             </div>
             <div class="score-row">
-              <span class="text-red-400" data-i18n="database_sql">Database
+              <span id="score-label-database" class="text-red-400" data-i18n="database_sql">Database
                 (SQL)</span>
               <span id="score-database" class="text-red-300">0</span>
             </div>
@@ -903,19 +903,33 @@
         <div class="text-gray-600 text-xs font-mono mb-8">BUILD · SCALE ·
           SURVIVE</div>
 
+        <div class="menu-section-label">Choose Mode</div>
+        <div class="menu-mode-grid mb-4">
+          <button onclick="startGame()" data-i18n="start_survival"
+            class="menu-mode-card menu-mode-card--survival">
+            <span class="menu-mode-kicker">Core</span>
+            <span class="menu-mode-title">Survival</span>
+            <span class="menu-mode-desc">Endless rising traffic with budget pressure and random events.</span>
+          </button>
+          <button onclick="startSandbox()" data-i18n="sandbox_mode"
+            class="menu-mode-card menu-mode-card--sandbox">
+            <span class="menu-mode-kicker">Build</span>
+            <span class="menu-mode-title">Sandbox</span>
+            <span class="menu-mode-desc">Experiment freely with topology, traffic mix, and budget controls.</span>
+          </button>
+          <button onclick="startMLOps()" data-i18n="mlops_mode"
+            class="menu-mode-card menu-mode-card--mlops">
+            <span class="menu-mode-kicker">Expansion</span>
+            <span class="menu-mode-title">MLOps</span>
+            <span class="menu-mode-desc">Route inference, training, and feature workloads through ML infrastructure.</span>
+          </button>
+        </div>
+
+        <div class="menu-section-label">Session</div>
         <div class="space-y-2">
           <button id="resume-btn" onclick="resumeGame()" data-i18n="resume_game"
             class="hidden modal-btn modal-btn--blue w-full text-lg py-3">Resume
             Game</button>
-          <button onclick="startGame()" data-i18n="start_survival"
-            class="modal-btn modal-btn--green w-full text-lg py-3">Start
-            Survival</button>
-          <button onclick="startSandbox()" data-i18n="sandbox_mode"
-            class="modal-btn modal-btn--purple w-full text-lg py-3">Sandbox
-            Mode</button>
-          <button onclick="startMLOps()" data-i18n="mlops_mode"
-            class="modal-btn modal-btn--mlops w-full text-lg py-3">⚙ MLOps Mode
-            <span class="modal-badge-soon">SOON</span></button>
           <button
             onclick="document.getElementById('upload-file-input')?.click()"
             id="upload-btn" data-i18n="upload_game"
@@ -1017,12 +1031,12 @@
           </button>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div id="faq-grid" class="grid grid-cols-1 md:grid-cols-2 gap-8">
           <!-- Traffic Types -->
           <div>
-            <h3 data-i18n="traffic_types"
+            <h3 id="faq-traffic-title" data-i18n="traffic_types"
               class="faq-section-title text-blue-400">TRAFFIC TYPES</h3>
-            <div class="space-y-2">
+            <div id="faq-traffic-content" class="space-y-2">
               <div class="faq-card border-green-900/50">
                 <strong data-i18n="traffic_static_full"
                   class="text-green-400">STATIC (GET)</strong>
@@ -1057,8 +1071,8 @@
 
           <!-- Services -->
           <div>
-            <h3 class="faq-section-title text-blue-400">SERVICES</h3>
-            <div class="space-y-2">
+            <h3 id="faq-services-title" class="faq-section-title text-blue-400">SERVICES</h3>
+            <div id="faq-services-content" class="space-y-2">
               <div class="faq-card border-purple-900/50">
                 <strong class="text-purple-400">Firewall (WAF) — $40</strong>
                 <p class="faq-desc">Blocks malicious traffic. Place before
@@ -1109,8 +1123,8 @@
 
         <!-- Tools -->
         <div class="mt-8">
-          <h3 class="faq-section-title text-blue-400">TOOLS</h3>
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+          <h3 id="faq-tools-title" class="faq-section-title text-blue-400">TOOLS</h3>
+          <div id="faq-tools-content" class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
             <div class="faq-card">
               <strong class="text-white block mb-1">SELECT</strong>
               <p class="faq-desc">Click services. Click upgradeable nodes to
@@ -1134,8 +1148,8 @@
 
         <!-- Mechanics -->
         <div class="mt-8">
-          <h3 class="faq-section-title text-blue-400">MECHANICS</h3>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+          <h3 id="faq-mechanics-title" class="faq-section-title text-blue-400">MECHANICS</h3>
+          <div id="faq-mechanics-content" class="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
             <div class="faq-card">
               <strong class="text-white block mb-1">Upgrades</strong>
               <p class="faq-desc">Click Compute/DB/Cache to upgrade capacity
@@ -1209,38 +1223,6 @@
       }
   })();
 
-  // ── MLOps mode stub (coming soon) ─────────────────────────────────────────
-  window.startMLOps = function() {
-      document.getElementById('main-menu-modal').classList.add('hidden');
-      // TODO: implement full MLOps mode
-      // For now show a coming-soon modal / toast
-      const toast = document.createElement('div');
-      toast.style.cssText = [
-          'position:fixed','top:50%','left:50%',
-          'transform:translate(-50%,-50%)',
-          'background:rgba(8,14,26,.98)',
-          'border:1px solid rgba(168,85,247,.4)',
-          'border-radius:12px','padding:32px 40px',
-          'text-align:center','z-index:9999',
-          'font-family:"Share Tech Mono",monospace',
-          'color:#c084fc','max-width:380px',
-          'box-shadow:0 0 40px rgba(168,85,247,.3)',
-      ].join(';');
-      toast.innerHTML = `
-          <div style="font-size:32px;margin-bottom:12px">⚙</div>
-          <div style="font-size:18px;font-weight:700;letter-spacing:.1em;margin-bottom:8px">MLOPS MODE</div>
-          <div style="font-size:11px;color:#64748b;margin-bottom:20px;line-height:1.6">
-              Training clusters, inference endpoints, feature stores<br>
-              and model registries are loading…<br><br>
-              <span style="color:#7c3aed">Coming soon.</span>
-          </div>
-          <button onclick="this.parentElement.remove();document.getElementById('main-menu-modal').classList.remove('hidden')"
-              style="background:rgba(168,85,247,.15);border:1px solid rgba(168,85,247,.3);color:#c084fc;
-              padding:8px 24px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:11px;
-              letter-spacing:.08em">BACK TO MENU</button>
-      `;
-      document.body.appendChild(toast);
-  };
   </script>
     <script src="game-patch.js"></script>
   </body>

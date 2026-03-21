@@ -17,6 +17,320 @@ function formatTime(totalSeconds) {
     }
 }
 
+const BASE_SERVICE_CONFIG = JSON.parse(JSON.stringify(CONFIG.services));
+const BASE_TRAFFIC_CONFIG = JSON.parse(JSON.stringify(CONFIG.trafficTypes));
+
+const MLOPS_MODE = {
+    startBudget: 520,
+    baseRPS: 1.1,
+    trafficDistribution: {
+        STATIC: 0.18,   // BATCH
+        READ: 0.32,     // REALTIME
+        WRITE: 0.16,    // TRAIN
+        UPLOAD: 0.14,   // PIPELINE
+        SEARCH: 0.08,   // FEATURE
+        MALICIOUS: 0.12 // ADVERSARIAL
+    },
+    trafficLabels: {
+        STATIC: { short: "BT", full: "BATCH", title: "Offline batch inference jobs" },
+        READ: { short: "RT", full: "REALTIME", title: "Low-latency inference requests" },
+        WRITE: { short: "TR", full: "TRAIN", title: "Training and retraining jobs" },
+        UPLOAD: { short: "PL", full: "PIPELINE", title: "Background data refresh pipelines" },
+        SEARCH: { short: "FT", full: "FEATURE", title: "Feature lookup and retrieval requests" },
+        MALICIOUS: { short: "ADV", full: "ADVERSARIAL", title: "Poisoned or adversarial inputs" }
+    },
+    failureLabels: {
+        STATIC: "BT Batch",
+        READ: "RT Realtime",
+        WRITE: "TR Train",
+        UPLOAD: "PL Pipeline",
+        SEARCH: "FT Feature",
+        MALICIOUS: "ADV Leak"
+    },
+    scoreLabels: {
+        storage: "Realtime / Batch",
+        database: "Training / Registry"
+    },
+    objectives: {
+        primary: "Keep the ML platform online under rising workload",
+        storage: "Route BATCH / PIPELINE through storage and features",
+        database: "Separate REALTIME serving from TRAIN workloads",
+        waf: "Block ADVERSARIAL inputs in the data pipeline"
+    },
+    services: {
+        waf: {
+            label: "Data Pipeline",
+            toolLabel: "DATA PIPE",
+            desc: "Validates and preprocesses data. Blocks adversarial inputs before they poison downstream systems."
+        },
+        apigw: {
+            label: "Model Monitor",
+            toolLabel: "MONITOR",
+            desc: "Observes model health and slows silent drift. Also soft-limits overload before it becomes an outage."
+        },
+        sqs: {
+            label: "Training Queue",
+            toolLabel: "TRAIN Q",
+            desc: "Buffers delayed work so retraining and offline jobs do not overwhelm serving paths."
+        },
+        alb: {
+            label: "Traffic Router",
+            toolLabel: "ROUTER",
+            desc: "Splits workloads across endpoints and clusters. Keeps serving traffic from piling onto one node."
+        },
+        compute: {
+            label: "Inference Endpoint",
+            toolLabel: "INFER",
+            desc: "Always-on model serving node. Real-time inference goes cold if left idle for too long."
+        },
+        db: {
+            label: "Model Registry",
+            toolLabel: "REGISTRY",
+            desc: "Stores deployed model artifacts and rollout history."
+        },
+        nosql: {
+            label: "Training Cluster",
+            toolLabel: "TRAIN CL",
+            desc: "Runs retraining jobs faster than the serving path, but it is expensive to scale."
+        },
+        cache: {
+            label: "Feature Store",
+            toolLabel: "FEATURE",
+            desc: "Caches feature vectors so inference does not recompute the full data pipeline every time."
+        },
+        s3: {
+            label: "Data Lake",
+            toolLabel: "DATA LAKE",
+            desc: "Persistent storage for raw data, batch outputs, and feature refresh inputs."
+        },
+        cdn: {
+            label: "GPU Pool",
+            toolLabel: "GPU POOL",
+            desc: "Very fast and very expensive compute. Great for batch-heavy bursts, dangerous to overuse."
+        }
+    }
+};
+
+function isMLOpsMode() {
+    return STATE.gameMode === "mlops";
+}
+
+function getTrafficPresentation(type) {
+    if (isMLOpsMode()) return MLOPS_MODE.trafficLabels[type] || { short: type, full: type, title: type };
+    const defaults = {
+        STATIC: { short: "ST", full: "STATIC", title: "Static GET" },
+        READ: { short: "RD", full: "READ", title: "Read GET" },
+        WRITE: { short: "WR", full: "WRITE", title: "Write POST" },
+        UPLOAD: { short: "UP", full: "UPLOAD", title: "Upload" },
+        SEARCH: { short: "SR", full: "SEARCH", title: "Search" },
+        MALICIOUS: { short: "☠", full: "MALICIOUS", title: "Malicious" }
+    };
+    return defaults[type] || { short: type, full: type, title: type };
+}
+
+function getServiceLabel(type) {
+    if (isMLOpsMode() && MLOPS_MODE.services[type]) return MLOPS_MODE.services[type].label;
+    return i18n.t(type);
+}
+
+function getServiceToolLabel(type) {
+    if (isMLOpsMode() && MLOPS_MODE.services[type]) {
+        return MLOPS_MODE.services[type].toolLabel || MLOPS_MODE.services[type].label;
+    }
+    return i18n.t(type);
+}
+
+function getServiceDescription(type) {
+    if (isMLOpsMode() && MLOPS_MODE.services[type]) return MLOPS_MODE.services[type].desc;
+    return i18n.t(type + "_desc");
+}
+
+function getModeUpkeepTone(type) {
+    const upkeep = CONFIG.services[type]?.tooltip?.upkeep;
+    return upkeep ? i18n.t(upkeep.toLowerCase().replace(" ", "_")) : "";
+}
+
+function resetConfigForMode(mode) {
+    Object.keys(BASE_SERVICE_CONFIG).forEach((key) => {
+        CONFIG.services[key] = JSON.parse(JSON.stringify(BASE_SERVICE_CONFIG[key]));
+    });
+    Object.keys(BASE_TRAFFIC_CONFIG).forEach((key) => {
+        CONFIG.trafficTypes[key] = JSON.parse(JSON.stringify(BASE_TRAFFIC_CONFIG[key]));
+    });
+
+    if (mode !== "mlops") return;
+
+    Object.assign(CONFIG.services.cdn, { cost: 180, upkeep: 26, capacity: 80, processingTime: 20 });
+    Object.assign(CONFIG.services.cache, { cost: 90, upkeep: 10, capacity: 36, cacheHitRate: 0.6 });
+    CONFIG.services.cache.tiers = [
+        { level: 1, capacity: 36, cacheHitRate: 0.6, cost: 0 },
+        { level: 2, capacity: 60, cacheHitRate: 0.72, cost: 140 },
+        { level: 3, capacity: 90, cacheHitRate: 0.82, cost: 220 }
+    ];
+    Object.assign(CONFIG.services.nosql, { cost: 130, upkeep: 20, capacity: 18, processingTime: 180 });
+    CONFIG.services.nosql.tiers = [
+        { level: 1, capacity: 18, cost: 0 },
+        { level: 2, capacity: 36, cost: 150 },
+        { level: 3, capacity: 60, cost: 240 }
+    ];
+    Object.assign(CONFIG.services.compute, { cost: 70, upkeep: 12, capacity: 5, processingTime: 520 });
+    CONFIG.services.compute.tiers = [
+        { level: 1, capacity: 5, cost: 0 },
+        { level: 2, capacity: 11, cost: 110 },
+        { level: 3, capacity: 18, cost: 180 }
+    ];
+    Object.assign(CONFIG.services.db, { cost: 140, upkeep: 20, capacity: 10 });
+    Object.assign(CONFIG.trafficTypes.READ, { reward: 1.0, score: 7, cacheHitRate: 0.25, processingWeight: 1.1 });
+    Object.assign(CONFIG.trafficTypes.WRITE, { reward: 0.8, score: 6, cacheHitRate: 0, processingWeight: 1.8 });
+    Object.assign(CONFIG.trafficTypes.STATIC, { reward: 0.9, score: 6, cacheHitRate: 0.2, processingWeight: 1.3 });
+    Object.assign(CONFIG.trafficTypes.UPLOAD, { reward: 0.5, score: 3, cacheHitRate: 0, processingWeight: 0.8 });
+    Object.assign(CONFIG.trafficTypes.SEARCH, { reward: 0.7, score: 4, cacheHitRate: 0.45, processingWeight: 1.0 });
+}
+
+function applyModePresentation() {
+    const modeTitle = document.getElementById("mode-title");
+    const trafficMonitorTitle = document.getElementById("traffic-monitor-title");
+    const scoreStorageLabel = document.getElementById("score-label-storage");
+    const scoreDatabaseLabel = document.getElementById("score-label-database");
+    const objectivePrimary = document.getElementById("objective-primary");
+    const objectiveStorage = document.getElementById("objective-storage");
+    const objectiveDb = document.getElementById("objective-db");
+    const objectiveWaf = document.getElementById("objective-waf");
+
+    if (isMLOpsMode()) {
+        if (modeTitle) modeTitle.textContent = "MLOPS PROTOCOL";
+        if (trafficMonitorTitle) trafficMonitorTitle.textContent = "WORKLOAD MONITOR";
+        if (scoreStorageLabel) scoreStorageLabel.textContent = MLOPS_MODE.scoreLabels.storage;
+        if (scoreDatabaseLabel) scoreDatabaseLabel.textContent = MLOPS_MODE.scoreLabels.database;
+        if (objectivePrimary) objectivePrimary.textContent = MLOPS_MODE.objectives.primary;
+        if (objectiveStorage) objectiveStorage.textContent = MLOPS_MODE.objectives.storage;
+        if (objectiveDb) objectiveDb.textContent = MLOPS_MODE.objectives.database;
+        if (objectiveWaf) objectiveWaf.textContent = MLOPS_MODE.objectives.waf;
+    } else {
+        if (modeTitle) modeTitle.textContent = "SURVIVAL PROTOCOL";
+        if (trafficMonitorTitle) trafficMonitorTitle.textContent = "TRAFFIC MONITOR";
+        if (scoreStorageLabel) scoreStorageLabel.textContent = "Storage (S3)";
+        if (scoreDatabaseLabel) scoreDatabaseLabel.textContent = "Database (SQL)";
+        if (objectivePrimary) objectivePrimary.textContent = "Survive Endless Traffic";
+        if (objectiveStorage) objectiveStorage.textContent = "Route STATIC/UPLOAD → Storage";
+        if (objectiveDb) objectiveDb.textContent = "Route READ/WRITE/SEARCH → DB";
+        if (objectiveWaf) objectiveWaf.textContent = "Block MALICIOUS with Firewall";
+    }
+
+    ["static", "read", "write", "upload", "search", "malicious"].forEach((key) => {
+        const el = document.getElementById(`mix-${key}`);
+        const traffic = getTrafficPresentation(key.toUpperCase());
+        if (!el) return;
+        el.textContent = traffic.short;
+        el.title = traffic.title;
+    });
+
+    const failureMap = {
+        malicious: "MALICIOUS",
+        static: "STATIC",
+        read: "READ",
+        write: "WRITE",
+        upload: "UPLOAD",
+        search: "SEARCH"
+    };
+    Object.entries(failureMap).forEach(([id, type]) => {
+        const el = document.getElementById(`fail-label-${id}`);
+        if (!el) return;
+        el.textContent = isMLOpsMode()
+            ? MLOPS_MODE.failureLabels[type]
+            : {
+                MALICIOUS: "🛡 Fraud Leak",
+                STATIC: "ST Static",
+                READ: "RD Read",
+                WRITE: "WR Write",
+                UPLOAD: "UP Upload",
+                SEARCH: "SR Search"
+            }[type];
+    });
+
+    const toolMap = {
+        waf: "waf",
+        apigw: "apigw",
+        sqs: "sqs",
+        alb: "alb",
+        lambda: "compute",
+        db: "db",
+        nosql: "nosql",
+        cache: "cache",
+        cdn: "cdn",
+        s3: "s3"
+    };
+    Object.entries(toolMap).forEach(([toolId, serviceKey]) => {
+        const btn = document.getElementById(`tool-${toolId}`);
+        if (!btn) return;
+        const label = btn.querySelector(".tool-label");
+        const price = btn.querySelector(".shop-price");
+        if (label) label.textContent = getServiceToolLabel(serviceKey).toUpperCase();
+        if (price) price.textContent = `$${CONFIG.services[serviceKey].cost}`;
+    });
+
+    renderFAQForMode();
+}
+
+function renderFAQForMode() {
+    const trafficContent = document.getElementById("faq-traffic-content");
+    const servicesContent = document.getElementById("faq-services-content");
+    const toolsContent = document.getElementById("faq-tools-content");
+    const mechanicsContent = document.getElementById("faq-mechanics-content");
+    if (!trafficContent || !servicesContent || !toolsContent || !mechanicsContent) return;
+
+    if (!window.__baseFaqContent) {
+        window.__baseFaqContent = {
+            traffic: trafficContent.innerHTML,
+            services: servicesContent.innerHTML,
+            tools: toolsContent.innerHTML,
+            mechanics: mechanicsContent.innerHTML
+        };
+    }
+
+    if (!isMLOpsMode()) {
+        trafficContent.innerHTML = window.__baseFaqContent.traffic;
+        servicesContent.innerHTML = window.__baseFaqContent.services;
+        toolsContent.innerHTML = window.__baseFaqContent.tools;
+        mechanicsContent.innerHTML = window.__baseFaqContent.mechanics;
+        return;
+    }
+
+    trafficContent.innerHTML = `
+        <div class="faq-card border-blue-900/50"><strong class="text-blue-400">REALTIME</strong><p class="faq-desc">Latency-sensitive inference. Keep endpoints warm or the first request pays a cold-start penalty.</p></div>
+        <div class="faq-card border-orange-900/50"><strong class="text-orange-400">TRAIN</strong><p class="faq-desc">Retraining jobs. They can queue safely, but delaying them too long lets model health decay.</p></div>
+        <div class="faq-card border-green-900/50"><strong class="text-green-400">BATCH</strong><p class="faq-desc">Offline inference bursts. Great fit for the GPU pool, but expensive if you keep it online all game.</p></div>
+        <div class="faq-card border-yellow-900/50"><strong class="text-yellow-400">PIPELINE</strong><p class="faq-desc">Background data refresh. Feeds the feature store and data lake.</p></div>
+        <div class="faq-card border-cyan-900/50"><strong class="text-cyan-400">FEATURE</strong><p class="faq-desc">Feature lookup traffic. A healthy feature store prevents the serving path from recomputing everything.</p></div>
+        <div class="faq-card border-red-900/50"><strong class="text-red-400">ADVERSARIAL</strong><p class="faq-desc">Poisoned or malicious inputs. Let them through and your reputation drains fast.</p></div>
+    `;
+
+    servicesContent.innerHTML = `
+        <div class="faq-card border-purple-900/50"><strong class="text-purple-400">Data Pipeline — $${CONFIG.services.waf.cost}</strong><p class="faq-desc">Validates raw inputs and blocks adversarial traffic before it contaminates the platform.</p></div>
+        <div class="faq-card border-fuchsia-900/50"><strong class="text-fuchsia-400">Model Monitor — $${CONFIG.services.apigw.cost}</strong><p class="faq-desc">Slows model drift and exposes health loss before reputation mysteriously collapses.</p></div>
+        <div class="faq-card border-orange-900/50"><strong class="text-orange-400">Training Queue — $${CONFIG.services.sqs.cost}</strong><p class="faq-desc">Buffers training demand so serving traffic and retraining do not fight for the same moment.</p></div>
+        <div class="faq-card border-blue-900/50"><strong class="text-blue-400">Traffic Router — $${CONFIG.services.alb.cost}</strong><p class="faq-desc">Splits workloads across multiple endpoints and clusters.</p></div>
+        <div class="faq-card border-orange-900/50"><strong class="text-orange-400">Inference Endpoint — $${CONFIG.services.compute.cost}</strong><p class="faq-desc">Serves real-time requests. Goes cold after sitting idle and adds an 8s penalty on the next request.</p></div>
+        <div class="faq-card border-violet-900/50"><strong class="text-violet-400">Training Cluster — $${CONFIG.services.nosql.cost}</strong><p class="faq-desc">Completing TRAIN here restores endpoint model health.</p></div>
+        <div class="faq-card border-red-900/50"><strong class="text-red-400">Feature Store — $${CONFIG.services.cache.cost}</strong><p class="faq-desc">Caches feature vectors so inference skips expensive upstream recomputation.</p></div>
+        <div class="faq-card border-green-900/50"><strong class="text-green-400">GPU Pool — $${CONFIG.services.cdn.cost}</strong><p class="faq-desc">The fastest node in the mode and the most expensive upkeep cliff in the game.</p></div>
+        <div class="faq-card border-emerald-900/50"><strong class="text-emerald-400">Data Lake — $${CONFIG.services.s3.cost}</strong><p class="faq-desc">Stores raw inputs, pipeline outputs, and batch artifacts.</p></div>
+    `;
+
+    toolsContent.innerHTML = `
+        <div class="faq-card"><strong class="text-white block mb-1">SELECT</strong><p class="faq-desc">Inspect queue pressure, model health, and cold/warm endpoint state.</p></div>
+        <div class="faq-card"><strong class="text-white block mb-1">LINK</strong><p class="faq-desc">Draw the serving and training topology explicitly. Wrong paths still fail visibly.</p></div>
+        <div class="faq-card"><strong class="text-white block mb-1">DELETE</strong><p class="faq-desc">Replace expensive nodes when your budget cliff gets too steep.</p></div>
+        <div class="faq-card"><strong class="text-white block mb-1">UNLINK</strong><p class="faq-desc">Break unsafe rollout paths before they drain more reputation.</p></div>
+    `;
+
+    mechanicsContent.innerHTML = `
+        <div class="faq-card"><strong class="text-white block mb-1">Cold Starts</strong><p class="faq-desc">Idle inference endpoints go cold after 12s. The next realtime request takes an extra 8s to serve.</p></div>
+        <div class="faq-card"><strong class="text-white block mb-1">Model Drift</strong><p class="faq-desc">Inference endpoints lose health over time. Below 70%, serving requests costs extra reputation.</p></div>
+        <div class="faq-card"><strong class="text-white block mb-1">Retraining</strong><p class="faq-desc">Finishing TRAIN on a Training Cluster repairs model health across your serving fleet.</p></div>
+    `;
+}
+
 // ==================== BALANCE OVERHAUL FUNCTIONS ====================
 
 function calculateTargetRPS(gameTimeSeconds) {
@@ -883,6 +1197,8 @@ function resetGame(mode = "survival") {
     STATE.sound.init();
     STATE.sound.playGameBGM();
     STATE.gameMode = mode;
+    resetConfigForMode(mode);
+    applyModePresentation();
 
     // Set budget based on mode
     if (mode === "sandbox") {
@@ -899,6 +1215,11 @@ function resetGame(mode = "survival") {
         };
         STATE.burstCount = CONFIG.sandbox.defaultBurstCount;
         STATE.currentRPS = CONFIG.sandbox.defaultRPS;
+    } else if (mode === "mlops") {
+        STATE.money = MLOPS_MODE.startBudget;
+        STATE.upkeepEnabled = true;
+        STATE.trafficDistribution = { ...MLOPS_MODE.trafficDistribution };
+        STATE.currentRPS = MLOPS_MODE.baseRPS;
     } else {
         STATE.money = CONFIG.survival.startBudget;
         STATE.upkeepEnabled = true;
@@ -1206,6 +1527,7 @@ function retryWithSameArchitecture() {
 
 // Initial setup - show menu, don't start game loop yet
 setTimeout(() => {
+    applyModePresentation();
     showMainMenu();
 }, 100);
 
@@ -1333,9 +1655,21 @@ function updateScore(req, outcome) {
     } else if (outcome === "COMPLETED") {
         let reward = typeConfig.reward;
         const score = typeConfig.score;
+        let reputationDelta = points.SUCCESS_REPUTATION || 0.5;
 
         if (req.cached) {
             reward *= 1 + points.CACHE_HIT_BONUS;
+        }
+
+        if (isMLOpsMode() && req.type === TRAFFIC_TYPES.READ) {
+            const endpoints = STATE.services.filter((service) => service.type === "compute");
+            const avgModelHealth = endpoints.length > 0
+                ? endpoints.reduce((sum, service) => sum + (service.modelHealth || 100), 0) / endpoints.length
+                : 100;
+            if (avgModelHealth < 70) {
+                reputationDelta -= 0.35;
+                reward *= 0.85;
+            }
         }
 
         if (typeConfig.destination === "s3" || typeConfig.destination === "cdn") {
@@ -1356,7 +1690,7 @@ function updateScore(req, outcome) {
             STATE.finances.income.countByType[reqType] =
                 (STATE.finances.income.countByType[reqType] || 0) + 1;
         }
-        STATE.reputation += points.SUCCESS_REPUTATION || 0.5; // Gain reputation on success
+        STATE.reputation += reputationDelta;
     } else if (outcome === "THROTTLED") {
         // Soft fail from API Gateway rate limiting — much less reputation loss
         STATE.reputation += points.THROTTLED_REPUTATION || -0.2;
@@ -1446,6 +1780,7 @@ window.showFAQ = (source = "menu") => {
         faqSource = "game";
     }
 
+    renderFAQForMode();
     document.getElementById("faq-modal").classList.remove("hidden");
 };
 
@@ -1471,7 +1806,7 @@ window.startGame = () => {
     document.getElementById("main-menu-modal").classList.add("hidden");
     resetGame();
 
-    if (window.tutorial) {
+    if (window.tutorial && !window.tutorial.isCompleted()) {
         setTimeout(() => {
             window.tutorial.start();
         }, 500);
@@ -1481,6 +1816,17 @@ window.startGame = () => {
 window.startSandbox = () => {
     document.getElementById("main-menu-modal").classList.add("hidden");
     resetGame("sandbox");
+};
+
+window.startMLOps = () => {
+    document.getElementById("main-menu-modal").classList.add("hidden");
+    resetGame("mlops");
+
+    if (window.tutorial && !window.tutorial.isCompleted()) {
+        setTimeout(() => {
+            window.tutorial.start();
+        }, 500);
+    }
 };
 
 function createService(type, pos) {
@@ -1552,7 +1898,11 @@ function createConnection(fromId, toId) {
 
     if (!valid) {
         new Audio("assets/sounds/click-9.mp3").play();
-        console.error(i18n.t('invalid_topology_detailed'));
+        console.error(
+            isMLOpsMode()
+                ? "Invalid MLOps topology: Workloads -> Data Pipeline/Router -> Inference Endpoint -> Feature Store / Registry / Training Cluster"
+                : i18n.t('invalid_topology_detailed')
+        );
         return;
     }
 
@@ -2121,15 +2471,15 @@ container.addEventListener("mousemove", (e) => {
             const load = s.processing.length / s.config.capacity;
             let loadColor = load > 0.8 ? "text-red-400" : load > 0.4 ? "text-yellow-400" : "text-green-400";
 
-            let content = `<strong class="text-blue-300">${i18n.t(s.type)}</strong>`;
+            let content = `<strong class="text-blue-300">${getServiceLabel(s.type)}</strong>`;
             if (s.tier) content += ` <span class="text-xs text-yellow-400">T${s.tier}</span>`;
 
             const healthColor = s.health < 40 ? "text-red-400" : s.health < 70 ? "text-yellow-400" : "text-green-400";
             content += ` <span class="${healthColor}">${Math.round(s.health)}%</span>`;
 
             if (s.config.tooltip) {
-                content += `<br><span class="text-xs text-gray-400">${i18n.t(s.type + '_desc')}</span>`;
-                content += `<br><span class="text-xs text-gray-500">${i18n.t('upkeep_label')} <span class="text-gray-300">${i18n.t(s.config.tooltip.upkeep.toLowerCase().replace(' ', '_'))}</span></span>`;
+                content += `<br><span class="text-xs text-gray-400">${getServiceDescription(s.type)}</span>`;
+                content += `<br><span class="text-xs text-gray-500">${i18n.t('upkeep_label')} <span class="text-gray-300">${getModeUpkeepTone(s.type)}</span></span>`;
             }
 
             content += `<div class="mt-1 border-t border-gray-700 pt-1">`;
@@ -2157,6 +2507,15 @@ container.addEventListener("mousemove", (e) => {
             } else {
                 content += `${i18n.t('queue_label')} <span class="${loadColor}">${s.queue.length}</span><br>
                 ${i18n.t('load_label')} <span class="${loadColor}">${s.processing.length}/${s.config.capacity}</span>`;
+            }
+
+            if (isMLOpsMode() && s.type === "compute") {
+                const modelHealthColor =
+                    s.modelHealth < 70 ? "text-red-400" : s.modelHealth < 85 ? "text-yellow-400" : "text-green-400";
+                const tempState = s.isCold ? "COLD" : "WARM";
+                const tempColor = s.isCold ? "text-blue-400" : "text-emerald-400";
+                content += `<br>Model Health: <span class="${modelHealthColor}">${Math.round(s.modelHealth)}%</span>`;
+                content += `<br>Endpoint State: <span class="${tempColor}">${tempState}</span>`;
             }
             content += `</div>`;
 
@@ -2272,15 +2631,14 @@ function setupUITooltips() {
 
         // Map tool ID to config service key
         const serviceKey = toolId === "lambda" ? "compute" : toolId;
-        const config = CONFIG.services[serviceKey];
-
-        if (config && config.tooltip) {
+        if (CONFIG.services[serviceKey] && CONFIG.services[serviceKey].tooltip) {
             btn.addEventListener("mousemove", (e) => {
+                const config = CONFIG.services[serviceKey];
                 const content = `
-                    <strong class="text-blue-300">${i18n.t(serviceKey)}</strong> <span class="text-green-400">$${config.cost}</span><br>
-                    <span class="text-xs text-gray-400">${i18n.t(serviceKey + '_desc')}</span><br>
+                    <strong class="text-blue-300">${getServiceLabel(serviceKey)}</strong> <span class="text-green-400">$${config.cost}</span><br>
+                    <span class="text-xs text-gray-400">${getServiceDescription(serviceKey)}</span><br>
                     <div class="mt-1 pt-1 border-t border-gray-700 flex justify-between text-xs">
-                        <span class="text-gray-500">${i18n.t('upkeep_label')} <span class="text-gray-300">${i18n.t(config.tooltip.upkeep.toLowerCase().replace(' ', '_'))}</span></span>
+                        <span class="text-gray-500">${i18n.t('upkeep_label')} <span class="text-gray-300">${getModeUpkeepTone(serviceKey)}</span></span>
                     </div>
                 `;
                 showTooltip(e.clientX + 15, e.clientY - 100, content); // Show above the button
@@ -2479,10 +2837,12 @@ function animate(time) {
             STATE.spawnTimer -= spawnInterval;
             spawnRequest();
         }
-        // Only ramp up in survival mode - use logarithmic growth
-        if (STATE.gameMode === "survival") {
+        // Only ramp up in survival-style modes - use logarithmic growth
+        if (STATE.gameMode === "survival" || STATE.gameMode === "mlops") {
             const gameTime = STATE.elapsedGameTime;
-            const targetRPS = calculateTargetRPS(gameTime);
+            const targetRPS = STATE.gameMode === "mlops"
+                ? calculateTargetRPS(gameTime) + 0.6
+                : calculateTargetRPS(gameTime);
 
             // Smooth transition to target
             STATE.currentRPS += (targetRPS - STATE.currentRPS) * 0.01;
@@ -2537,7 +2897,7 @@ function animate(time) {
         }
     }
 
-    if (STATE.gameMode === "survival") {
+    if (STATE.gameMode === "survival" || STATE.gameMode === "mlops") {
         const staticEl = document.getElementById("mix-static");
         const readEl = document.getElementById("mix-read");
         const writeEl = document.getElementById("mix-write");
@@ -2588,7 +2948,7 @@ function animate(time) {
     const rpsCountdownEl = document.getElementById("rps-countdown");
     const rpsMilestoneRow = document.getElementById("rps-milestone-row");
 
-    if (STATE.gameMode === "survival" && rpsMilestoneRow) {
+    if ((STATE.gameMode === "survival" || STATE.gameMode === "mlops") && rpsMilestoneRow) {
         rpsMilestoneRow.style.display = "flex";
 
         // Show next RPS acceleration milestone instead of arbitrary integer
@@ -3065,6 +3425,9 @@ window.saveGameState = (saveAs = "browser") => {
                 connections: [...service.connections],
                 tier: service.tier,
                 cacheHitRate: service.config.cacheHitRate || null,
+                modelHealth: service.modelHealth ?? null,
+                isCold: service.isCold ?? false,
+                idleTime: service.idleTime ?? 0,
             })),
             connections: STATE.connections.map((conn) => ({
                 from: conn.from,
@@ -3229,6 +3592,8 @@ function loadGameState(saveData = null) {
         STATE.gameStartTime = performance.now();
 
         STATE.gameMode = saveData.gameMode || "survival";
+        resetConfigForMode(STATE.gameMode);
+        applyModePresentation();
         STATE.sandboxBudget = saveData.sandboxBudget || 2000;
         STATE.upkeepEnabled = saveData.upkeepEnabled !== false;
         STATE.trafficDistribution = { ...saveData.trafficDistribution } || {

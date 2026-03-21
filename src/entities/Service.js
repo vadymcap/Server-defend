@@ -123,6 +123,9 @@ class Service {
     // Service health for degradation mechanic
     this.health = 100;
     this.originalColor = mat.color.getHex();
+    this.modelHealth = 100;
+    this.idleTime = 0;
+    this.isCold = false;
 
     // Health bar (3D bar above service)
     this.createHealthBar();
@@ -220,6 +223,17 @@ class Service {
         continue;
       }
 
+      if (
+        STATE.gameMode === "mlops" &&
+        this.type === "compute" &&
+        req.type === TRAFFIC_TYPES.READ &&
+        this.isCold
+      ) {
+        req.mlopsColdStart = true;
+        this.isCold = false;
+        this.idleTime = 0;
+      }
+
       this.processing.push({ req: req, timer: 0 });
     }
   }
@@ -241,6 +255,30 @@ class Service {
   }
 
   update(dt) {
+    if (STATE.gameMode === "mlops" && this.type === "compute") {
+      const hasWork =
+        this.queue.length > 0 || this.processing.length > 0 || this.incomingCount > 0;
+
+      if (hasWork) {
+        this.idleTime = 0;
+        this.isCold = false;
+      } else {
+        this.idleTime += dt;
+        if (this.idleTime >= 12) this.isCold = true;
+      }
+
+      const monitorCount = STATE.services.filter(
+        (s) => s.type === "apigw" && !s.isDisabled
+      ).length;
+      const driftRate = monitorCount > 0 ? 0.18 : 0.35;
+      this.modelHealth = Math.max(0, this.modelHealth - driftRate * dt);
+
+      if (this.mesh.material.emissive) {
+        if (this.isCold) this.mesh.material.emissive.setHex(0x1d4ed8);
+        else if (this.modelHealth < 70) this.mesh.material.emissive.setHex(0x7f1d1d);
+      }
+    }
+
     // Service degradation mechanic
     if (CONFIG.survival.degradation?.enabled && STATE.gameMode === "survival") {
       const degradeConfig = CONFIG.survival.degradation;
@@ -333,7 +371,7 @@ class Service {
 
       const processingTime =
         this.type === "compute"
-          ? this.config.processingTime * job.req.processingWeight
+          ? this.config.processingTime * job.req.processingWeight + (job.req.mlopsColdStart ? 8000 : 0)
           : this.config.processingTime;
 
       job.timer += dt * 1000;
@@ -354,7 +392,15 @@ class Service {
         }
 
         if (this.type === "db") {
+          job.req.servedBy = this;
           if (job.req.destination === "db") {
+            if (STATE.gameMode === "mlops" && job.req.type === TRAFFIC_TYPES.WRITE) {
+              STATE.services
+                .filter((service) => service.type === "compute")
+                .forEach((service) => {
+                  service.modelHealth = Math.min(100, service.modelHealth + 10);
+                });
+            }
             finishRequest(job.req);
           } else {
             failRequest(job.req);
@@ -363,10 +409,18 @@ class Service {
         }
 
         if (this.type === "nosql") {
+          job.req.servedBy = this;
           // NoSQL handles READ and WRITE, but NOT SEARCH
           if (job.req.type === "SEARCH") {
             failRequest(job.req);
           } else if (job.req.destination === "db") {
+            if (STATE.gameMode === "mlops" && job.req.type === TRAFFIC_TYPES.WRITE) {
+              STATE.services
+                .filter((service) => service.type === "compute")
+                .forEach((service) => {
+                  service.modelHealth = Math.min(100, service.modelHealth + 18);
+                });
+            }
             finishRequest(job.req);
           } else {
             failRequest(job.req);
@@ -375,6 +429,7 @@ class Service {
         }
 
         if (this.type === "s3") {
+          job.req.servedBy = this;
           if (job.req.destination === "s3" || job.req.destination === "cdn") {
             finishRequest(job.req);
           } else {
@@ -384,6 +439,7 @@ class Service {
         }
 
         if (this.type === "cache") {
+          job.req.servedBy = this;
           if (job.req.isCacheable) {
             const hitRate = job.req.cacheHitRate;
 
@@ -820,6 +876,19 @@ class Service {
     const service = new Service(serviceData.type, pos);
     service.id = serviceData.id;
     service.mesh.userData.id = serviceData.id;
+    if (typeof serviceData.modelHealth === "number") {
+      service.modelHealth = serviceData.modelHealth;
+    }
+    service.isCold = !!serviceData.isCold;
+    service.idleTime = serviceData.idleTime || 0;
+    if (
+      STATE.gameMode === "mlops" &&
+      service.type === "compute" &&
+      service.mesh.material.emissive
+    ) {
+      if (service.isCold) service.mesh.material.emissive.setHex(0x1d4ed8);
+      else if (service.modelHealth < 70) service.mesh.material.emissive.setHex(0x7f1d1d);
+    }
 
     if (serviceData.tier && serviceData.tier > 1) {
       const tiers = CONFIG.services[serviceData.type]?.tiers;
