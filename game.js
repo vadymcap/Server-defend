@@ -1691,6 +1691,17 @@ function calculateFailChanceBasedOnLoad(load) {
 window.setTool = (t) => {
     STATE.activeTool = t;
     STATE.selectedNodeId = null;
+    // clear multi-select and link-hold state
+    if (STATE.selectedNodeIds) STATE.selectedNodeIds.clear();
+    if (typeof _applyMultiGlow === 'function') _applyMultiGlow();
+    if (typeof _clearConns === 'function') _clearConns();
+    if (typeof _clearTargets === 'function') _clearTargets();
+    if (typeof _hideBar === 'function') _hideBar();
+    if (STATE.linkHoldActive !== undefined) {
+        STATE.linkHoldActive = false;
+        STATE.linkHoldSourceId = null;
+        if (typeof _updateHoldBadge === 'function') _updateHoldBadge();
+    }
     document
         .querySelectorAll(".service-btn")
         .forEach((b) => b.classList.remove("active"));
@@ -1725,26 +1736,18 @@ window.setTimeScale = (s) => {
 };
 
 window.toggleMute = () => {
+    // Route through sound panel category system if available
+    if (typeof window._patchToggleCategory === 'function') {
+        window._patchToggleCategory('master');
+        return;
+    }
+    // Fallback: legacy direct toggle
     const muted = STATE.sound.toggleMute();
     const icon = document.getElementById("mute-icon");
     const menuIcon = document.getElementById("menu-mute-icon");
-
     const iconText = muted ? "🔇" : "🔊";
     if (icon) icon.innerText = iconText;
     if (menuIcon) menuIcon.innerText = iconText;
-
-    const muteBtn = document.getElementById("tool-mute");
-    const menuMuteBtn = document.getElementById("menu-mute-btn"); // We need to add ID to menu button
-
-    if (muted) {
-        muteBtn.classList.add("bg-red-900");
-        muteBtn.classList.add("pulse-green");
-        if (menuMuteBtn) menuMuteBtn.classList.add("pulse-green");
-    } else {
-        muteBtn.classList.remove("bg-red-900");
-        muteBtn.classList.remove("pulse-green");
-        if (menuMuteBtn) menuMuteBtn.classList.remove("pulse-green");
-    }
 };
 
 let currentZoom = 1;
@@ -1843,6 +1846,7 @@ container.addEventListener("contextmenu", (e) => e.preventDefault());
 container.addEventListener("mousedown", (e) => {
     if (!STATE.isRunning) return;
 
+    // Right/middle mouse → panning (unchanged)
     if (e.button === 2 || e.button === 1) {
         isPanning = true;
         lastMouseX = e.clientX;
@@ -1852,115 +1856,191 @@ container.addEventListener("mousedown", (e) => {
         return;
     }
 
+    // Left click only from here
     const i = getIntersect(e.clientX, e.clientY);
+
+    // ── SELECT TOOL ─────────────────────────────────────────────────────────
     if (STATE.activeTool === "select") {
-        const i = getIntersect(e.clientX, e.clientY);
-        if (i.type === "service") {
-            const svc = STATE.services.find((s) => s.id === i.id);
-            // Use criticalHealth from config for consistency
-            const criticalHealth = CONFIG.survival.degradation?.criticalHealth || 40;
-            if (svc && svc.health < criticalHealth && CONFIG.survival.degradation?.enabled) {
-                // Repair on click when damaged below critical threshold
-                if (svc.repair()) {
-                    addInterventionWarning(
-                        i18n.t('repaired_msg', { type: i18n.t(svc.type) }),
-                        "info",
-                        2000
-                    );
+
+        if (i.type === "service" || i.type === "internet") {
+            const id = i.id;
+
+            // Shift+click → toggle multi-select
+            if (e.shiftKey) {
+                if (STATE.selectedNodeIds.has(id)) STATE.selectedNodeIds.delete(id);
+                else                                STATE.selectedNodeIds.add(id);
+                _applyMultiGlow();
+                if (STATE.selectedNodeIds.size >= 2) _showBar(STATE.selectedNodeIds);
+                else                                 _hideBar();
+                if (STATE.selectedNodeIds.size === 1)
+                    _highlightConns([...STATE.selectedNodeIds][0]);
+                else
+                    _clearConns();
+                return;
+            }
+
+            // Group drag: click inside an existing multi-selection
+            if (STATE.selectedNodeIds.size >= 2 && STATE.selectedNodeIds.has(id)) {
+                const ground = getIntersect(e.clientX, e.clientY);
+                if (ground.pos) {
+                    _mDragActive = true;
+                    _mDragOrigin = ground.pos.clone();
+                    _mDragBases  = [...STATE.selectedNodeIds].map(nid => ({
+                        id:      nid,
+                        basePos: _ent(nid).position.clone(),
+                    }));
+                    container.style.cursor = "grabbing";
+                    e.preventDefault();
                     return;
                 }
             }
-            draggedNode = svc;
-        } else if (i.type === "internet") {
-            draggedNode = STATE.internetNode;
-        }
-        if (draggedNode) {
-            isDraggingNode = true;
-            const hit = getIntersect(e.clientX, e.clientY);
-            if (hit.pos) {
-                dragOffset.copy(draggedNode.position).sub(hit.pos);
+
+            // Click outside current multi-selection → clear it
+            if (STATE.selectedNodeIds.size > 0 && !STATE.selectedNodeIds.has(id)) {
+                STATE.selectedNodeIds.clear();
+                _applyMultiGlow();
+                _hideBar();
             }
-            container.style.cursor = "grabbing";
-            e.preventDefault();
+
+            // Single-node: show connection highlights
+            _clearConns();
+            _highlightConns(id);
+
+            // Repair if damaged (original behaviour)
+            if (i.type === "service") {
+                const svc = STATE.services.find((s) => s.id === id);
+                const criticalHealth = CONFIG.survival.degradation?.criticalHealth || 40;
+                if (svc && svc.health < criticalHealth && CONFIG.survival.degradation?.enabled) {
+                    if (svc.repair()) {
+                        addInterventionWarning(
+                            i18n.t('repaired_msg', { type: i18n.t(svc.type) }),
+                            "info", 2000
+                        );
+                        return;
+                    }
+                }
+                draggedNode = svc;
+            } else {
+                draggedNode = STATE.internetNode;
+            }
+
+            if (draggedNode) {
+                isDraggingNode = true;
+                const hit = getIntersect(e.clientX, e.clientY);
+                if (hit.pos) dragOffset.copy(draggedNode.position).sub(hit.pos);
+                container.style.cursor = "grabbing";
+                e.preventDefault();
+            }
             return;
         }
-    } else if (STATE.activeTool === "delete" && i.type === "service")
-        deleteObject(i.id);
-    else if (STATE.activeTool === "unlink") {
-        const conn = getConnectionAtPoint(e.clientX, e.clientY);
-        if (conn) {
-            deleteConnection(conn.from, conn.to);
-        } else {
-            new Audio("assets/sounds/click-9.mp3").play();
+
+        // Clicked empty ground → clear everything
+        STATE.selectedNodeIds.clear();
+        _applyMultiGlow();
+        _clearConns();
+        _hideBar();
+        return;
+    }
+
+    // ── CONNECT TOOL ────────────────────────────────────────────────────────
+    if (STATE.activeTool === "connect" && (i.type === "service" || i.type === "internet")) {
+        const id = i.id;
+
+        // Link-hold mode: always connect from pinned source
+        if (STATE.linkHoldActive && STATE.linkHoldSourceId) {
+            if (id !== STATE.linkHoldSourceId) createConnection(STATE.linkHoldSourceId, id);
+            _highlightTargets(STATE.linkHoldSourceId);
+            return;
         }
-    } else if (
-        STATE.activeTool === "connect" &&
-        (i.type === "service" || i.type === "internet")
-    ) {
+
         if (STATE.selectedNodeId) {
-            createConnection(STATE.selectedNodeId, i.id);
+            createConnection(STATE.selectedNodeId, id);
             STATE.selectedNodeId = null;
+            _clearTargets();
         } else {
-            STATE.selectedNodeId = i.id;
+            STATE.selectedNodeId = id;
+            _highlightTargets(id);
             new Audio("assets/sounds/click-5.mp3").play();
         }
-    } else if (
-        ["waf", "alb", "lambda", "db", "nosql", "s3", "sqs", "cache", "cdn", "apigw"].includes(
-            STATE.activeTool
-        )
-    ) {
-        // Handle upgrades for compute, db, cache, apigw, and nosql
+        return;
+    }
+
+    // ── DELETE TOOL ─────────────────────────────────────────────────────────
+    if (STATE.activeTool === "delete" && i.type === "service") {
+        deleteObject(i.id);
+        return;
+    }
+
+    // ── UNLINK TOOL ─────────────────────────────────────────────────────────
+    if (STATE.activeTool === "unlink") {
+        const conn = getConnectionAtPoint(e.clientX, e.clientY);
+        if (conn) deleteConnection(conn.from, conn.to);
+        else      new Audio("assets/sounds/click-9.mp3").play();
+        return;
+    }
+
+    // ── DEPLOY TOOLS ────────────────────────────────────────────────────────
+    if (["waf", "alb", "lambda", "db", "nosql", "s3", "sqs", "cache", "cdn", "apigw"].includes(STATE.activeTool)) {
+        // Upgrade on click for upgradeable service types
         if (
             (STATE.activeTool === "lambda" && i.type === "service") ||
-            (STATE.activeTool === "db" && i.type === "service") ||
-            (STATE.activeTool === "cache" && i.type === "service") ||
-            (STATE.activeTool === "apigw" && i.type === "service") ||
-            (STATE.activeTool === "nosql" && i.type === "service")
+            (STATE.activeTool === "db"     && i.type === "service") ||
+            (STATE.activeTool === "cache"  && i.type === "service") ||
+            (STATE.activeTool === "apigw"  && i.type === "service") ||
+            (STATE.activeTool === "nosql"  && i.type === "service")
         ) {
             const svc = STATE.services.find((s) => s.id === i.id);
-            if (
-                svc &&
+            if (svc &&
                 ((STATE.activeTool === "lambda" && svc.type === "compute") ||
-                    (STATE.activeTool === "db" && svc.type === "db") ||
-                    (STATE.activeTool === "cache" && svc.type === "cache") ||
-                    (STATE.activeTool === "apigw" && svc.type === "apigw") ||
-                    (STATE.activeTool === "nosql" && svc.type === "nosql"))
-            ) {
+                 (STATE.activeTool === "db"     && svc.type === "db")      ||
+                 (STATE.activeTool === "cache"  && svc.type === "cache")   ||
+                 (STATE.activeTool === "apigw"  && svc.type === "apigw")   ||
+                 (STATE.activeTool === "nosql"  && svc.type === "nosql"))) {
                 svc.upgrade();
                 return;
             }
         }
         if (i.type === "ground") {
-            const typeMap = {
-                waf: "waf",
-                alb: "alb",
-                lambda: "compute",
-                db: "db",
-                nosql: "nosql",
-                s3: "s3",
-                sqs: "sqs",
-                cache: "cache",
-                apigw: "apigw",
-                cdn: "cdn",
-            };
-
+            const typeMap = { waf:"waf", alb:"alb", lambda:"compute", db:"db",
+                              nosql:"nosql", s3:"s3", sqs:"sqs", cache:"cache",
+                              apigw:"apigw", cdn:"cdn" };
             const serviceType = typeMap[STATE.activeTool];
-            if (serviceType) {
-                createService(serviceType, snapToGrid(i.pos));
-            }
+            if (serviceType) createService(serviceType, snapToGrid(i.pos));
         }
     }
 });
 
 container.addEventListener("mousemove", (e) => {
+    // ── GROUP DRAG (multi-select) ────────────────────────────────────────────
+    if (_mDragActive && _mDragOrigin) {
+        const hit = getIntersect(e.clientX, e.clientY);
+        if (hit.pos) {
+            const delta = hit.pos.clone().sub(_mDragOrigin);
+            _mDragBases.forEach(({ id, basePos }) => {
+                const ent = _ent(id);
+                if (!ent) return;
+                const np = basePos.clone().add(delta);
+                np.y = 0;
+                ent.position.copy(np);
+                if (ent.mesh) { ent.mesh.position.x = np.x; ent.mesh.position.z = np.z; }
+                if (id === 'internet' && STATE.internetNode.ring) {
+                    STATE.internetNode.ring.position.x = np.x;
+                    STATE.internetNode.ring.position.z = np.z;
+                }
+                updateConnectionsForNode(id);
+            });
+            container.style.cursor = "grabbing";
+        }
+        return;
+    }
+
+    // ── SINGLE-NODE DRAG ────────────────────────────────────────────────────
     if (isDraggingNode && draggedNode) {
         const hit = getIntersect(e.clientX, e.clientY);
         if (hit.pos) {
             const newPos = hit.pos.clone().add(dragOffset);
             newPos.y = 0;
-
             draggedNode.position.copy(newPos);
-
             if (draggedNode.mesh) {
                 draggedNode.mesh.position.x = newPos.x;
                 draggedNode.mesh.position.z = newPos.z;
@@ -1970,31 +2050,23 @@ container.addEventListener("mousemove", (e) => {
                 STATE.internetNode.ring.position.x = newPos.x;
                 STATE.internetNode.ring.position.z = newPos.z;
             }
-
             updateConnectionsForNode(draggedNode.id);
-
             container.style.cursor = "grabbing";
         }
         return;
     }
+
     if (isPanning) {
         const dx = e.clientX - lastMouseX;
         const dy = e.clientY - lastMouseY;
-
-        const panX =
-            ((-dx * (camera.right - camera.left)) / window.innerWidth) * panSpeed;
-        const panY =
-            ((dy * (camera.top - camera.bottom)) / window.innerHeight) * panSpeed;
-
+        const panX = ((-dx * (camera.right - camera.left)) / window.innerWidth)  * panSpeed;
+        const panY = (( dy * (camera.top - camera.bottom)) / window.innerHeight) * panSpeed;
         if (isIsometric) {
-            camera.position.x += panX;
-            camera.position.z += panY;
-            cameraTarget.x += panX;
-            cameraTarget.z += panY;
+            camera.position.x += panX; camera.position.z += panY;
+            cameraTarget.x += panX;    cameraTarget.z += panY;
             camera.lookAt(cameraTarget);
         } else {
-            camera.position.x += panX;
-            camera.position.z += panY;
+            camera.position.x += panX; camera.position.z += panY;
             camera.lookAt(camera.position.x, 0, camera.position.z);
         }
         camera.updateProjectionMatrix();
@@ -2008,44 +2080,34 @@ container.addEventListener("mousemove", (e) => {
     const t = document.getElementById("tooltip");
     let cursor = "default";
 
-    // Reset all connection colors first
-    STATE.connections.forEach((c) => {
-        if (c.mesh && c.mesh.material) {
-            c.mesh.material.color.setHex(CONFIG.colors.line);
-        }
-    });
+    // Refresh link-target highlights in connect mode
+    if (STATE.activeTool === "connect") {
+        const src = STATE.linkHoldActive ? STATE.linkHoldSourceId : STATE.selectedNodeId;
+        if (src) { _highlightTargets(src); }
+        else      { _clearTargets(); }
+    }
+
+    // Reset all connection colours (will be re-set by highlight helpers or unlink hover)
+    if (STATE.activeTool !== "connect" && STATE.selectedNodeIds.size === 0 && !STATE.selectedNodeId) {
+        STATE.connections.forEach((c) => {
+            if (c.mesh && c.mesh.material) c.mesh.material.color.setHex(CONFIG.colors.line);
+        });
+    }
 
     // Handle unlink tool hover
     if (STATE.activeTool === "unlink") {
         const conn = getConnectionAtPoint(e.clientX, e.clientY);
         if (conn) {
             cursor = "pointer";
-            // Highlight the connection in red
-            if (conn.mesh && conn.mesh.material) {
-                conn.mesh.material.color.setHex(0xff4444);
-            }
-
-            // Get source and target names for tooltip
-            const from =
-                conn.from === "internet"
-                    ? STATE.internetNode
-                    : STATE.services.find((s) => s.id === conn.from);
-            const to =
-                conn.to === "internet"
-                    ? STATE.internetNode
-                    : STATE.services.find((s) => s.id === conn.to);
-            const fromName =
-                conn.from === "internet" ? i18n.t('internet') : from?.config?.name || i18n.t('unknown');
-            const toName =
-                conn.to === "internet" ? i18n.t('internet') : to?.config?.name || i18n.t('unknown');
-
-            showTooltip(
-                e.clientX + 15,
-                e.clientY + 15,
+            if (conn.mesh && conn.mesh.material) conn.mesh.material.color.setHex(0xff4444);
+            const from = conn.from === "internet" ? STATE.internetNode : STATE.services.find((s) => s.id === conn.from);
+            const to   = conn.to   === "internet" ? STATE.internetNode : STATE.services.find((s) => s.id === conn.to);
+            const fromName = conn.from === "internet" ? i18n.t('internet') : from?.config?.name || i18n.t('unknown');
+            const toName   = conn.to   === "internet" ? i18n.t('internet') : to?.config?.name   || i18n.t('unknown');
+            showTooltip(e.clientX + 15, e.clientY + 15,
                 `<strong class="text-orange-400">${i18n.t('remove_link')}</strong><br>
                 <span class="text-gray-300">${fromName}</span> → <span class="text-gray-300">${toName}</span><br>
-                <span class="text-red-400 text-xs">${i18n.t('click_to_remove')}</span>`
-            );
+                <span class="text-red-400 text-xs">${i18n.t('click_to_remove')}</span>`);
         } else {
             t.style.display = "none";
         }
@@ -2057,30 +2119,14 @@ container.addEventListener("mousemove", (e) => {
         const s = STATE.services.find((s) => s.id === i.id);
         if (s) {
             const load = s.processing.length / s.config.capacity;
-            let loadColor =
-                load > 0.8
-                    ? "text-red-400"
-                    : load > 0.4
-                        ? "text-yellow-400"
-                        : "text-green-400";
+            let loadColor = load > 0.8 ? "text-red-400" : load > 0.4 ? "text-yellow-400" : "text-green-400";
 
-            // Base tooltip content with static info
             let content = `<strong class="text-blue-300">${i18n.t(s.type)}</strong>`;
-            if (s.tier)
-                content += ` <span class="text-xs text-yellow-400">T${s.tier}</span>`;
+            if (s.tier) content += ` <span class="text-xs text-yellow-400">T${s.tier}</span>`;
 
-            // Show health percentage
-            const healthColor =
-                s.health < 40
-                    ? "text-red-400"
-                    : s.health < 70
-                        ? "text-yellow-400"
-                        : "text-green-400";
-            content += ` <span class="${healthColor}">${Math.round(
-                s.health
-            )}%</span>`;
+            const healthColor = s.health < 40 ? "text-red-400" : s.health < 70 ? "text-yellow-400" : "text-green-400";
+            content += ` <span class="${healthColor}">${Math.round(s.health)}%</span>`;
 
-            // Add static description and upkeep if available
             if (s.config.tooltip) {
                 content += `<br><span class="text-xs text-gray-400">${i18n.t(s.type + '_desc')}</span>`;
                 content += `<br><span class="text-xs text-gray-500">${i18n.t('upkeep_label')} <span class="text-gray-300">${i18n.t(s.config.tooltip.upkeep.toLowerCase().replace(' ', '_'))}</span></span>`;
@@ -2088,10 +2134,9 @@ container.addEventListener("mousemove", (e) => {
 
             content += `<div class="mt-1 border-t border-gray-700 pt-1">`;
 
-            // Service-specific dynamic stats
             if (s.type === "apigw") {
                 const rateLimit = s.config.rateLimit || 20;
-                const rateUsed = s.rateCounter || 0;
+                const rateUsed  = s.rateCounter || 0;
                 const rateColor = rateUsed > rateLimit ? "text-red-400" : rateUsed > rateLimit * 0.7 ? "text-yellow-400" : "text-green-400";
                 content += `${i18n.t('queue_label')} <span class="${loadColor}">${s.queue.length}</span><br>
                 ${i18n.t('load_label')} <span class="${loadColor}">${s.processing.length}/${s.config.capacity}</span><br>
@@ -2102,16 +2147,10 @@ container.addEventListener("mousemove", (e) => {
                 ${i18n.t('load_label')} <span class="${loadColor}">${s.processing.length}/${s.config.capacity}</span><br>
                 ${i18n.t('hit_rate_label')} <span class="text-green-400">${hitRate}%</span>`;
             } else if (s.type === "sqs") {
-                const maxQ = s.config.maxQueueSize || 200;
-                const fillPercent = Math.round((s.queue.length / maxQ) * 100);
-                const status =
-                    fillPercent > 80 ? i18n.t('status_critical') : fillPercent > 50 ? i18n.t('status_busy') : i18n.t('status_healthy');
-                const statusColor =
-                    fillPercent > 80
-                        ? "text-red-400"
-                        : fillPercent > 50
-                            ? "text-yellow-400"
-                            : "text-green-400";
+                const maxQ       = s.config.maxQueueSize || 200;
+                const fillPct    = Math.round((s.queue.length / maxQ) * 100);
+                const status     = fillPct > 80 ? i18n.t('status_critical') : fillPct > 50 ? i18n.t('status_busy') : i18n.t('status_healthy');
+                const statusColor = fillPct > 80 ? "text-red-400" : fillPct > 50 ? "text-yellow-400" : "text-green-400";
                 content += `${i18n.t('buffered_label')} <span class="${loadColor}">${s.queue.length}/${maxQ}</span><br>
                 ${i18n.t('processing_label')} ${s.processing.length}/${s.config.capacity}<br>
                 ${i18n.t('status_label')} <span class="${statusColor}">${status}</span>`;
@@ -2121,54 +2160,38 @@ container.addEventListener("mousemove", (e) => {
             }
             content += `</div>`;
 
-            // Show upgrade option for upgradeable services
-            if (
-                (STATE.activeTool === "lambda" && s.type === "compute") ||
-                (STATE.activeTool === "db" && s.type === "db") ||
-                (STATE.activeTool === "cache" && s.type === "cache") ||
-                (STATE.activeTool === "apigw" && s.type === "apigw") ||
-                (STATE.activeTool === "nosql" && s.type === "nosql")
-            ) {
+            if ((STATE.activeTool === "lambda" && s.type === "compute") ||
+                (STATE.activeTool === "db"     && s.type === "db")      ||
+                (STATE.activeTool === "cache"  && s.type === "cache")   ||
+                (STATE.activeTool === "apigw"  && s.type === "apigw")   ||
+                (STATE.activeTool === "nosql"  && s.type === "nosql")) {
                 const tiers = CONFIG.services[s.type].tiers;
                 if (s.tier < tiers.length) {
                     cursor = "pointer";
                     const nextCost = tiers[s.tier].cost;
                     content += `<div class="mt-1 pt-1 border-t border-gray-700"><span class="text-green-300 text-xs font-bold">${i18n.t('upgrade_label')} $${nextCost}</span></div>`;
-                    if (s.mesh.material.emissive)
-                        s.mesh.material.emissive.setHex(0x333333);
+                    if (s.mesh.material.emissive) s.mesh.material.emissive.setHex(0x333333);
                 } else {
                     content += `<div class="mt-1 pt-1 border-t border-gray-700"><span class="text-gray-500 text-xs">${i18n.t('max_tier')}</span></div>`;
                 }
             }
 
-            // SHOW UPGRADE INDICATOR (Green Arrow)
             if (["compute", "db", "cache", "apigw", "nosql"].includes(s.type)) {
                 const tiers = CONFIG.services[s.type].tiers;
                 if (s.tier < tiers.length) {
-                    // Clear any pending hide timer since we are hovering a valid service
-                    if (hideUpgradeTimer) {
-                        clearTimeout(hideUpgradeTimer);
-                        hideUpgradeTimer = null;
-                    }
-
+                    if (hideUpgradeTimer) { clearTimeout(hideUpgradeTimer); hideUpgradeTimer = null; }
                     hoveredUpgradeService = s;
                     const nextCost = tiers[s.tier].cost;
-
-                    // Project 3D position to 2D screen
                     const pos = s.mesh.position.clone();
-                    pos.y += 3; // Offset above service
+                    pos.y += 3;
                     pos.project(camera);
-
                     const x = (pos.x * .5 + .5) * container.clientWidth;
                     const y = (pos.y * -.5 + .5) * container.clientHeight;
-
                     if (upgradeIndicator && upgradeCostEl) {
                         upgradeIndicator.style.left = `${x}px`;
-                        upgradeIndicator.style.top = `${y}px`;
+                        upgradeIndicator.style.top  = `${y}px`;
                         upgradeIndicator.classList.remove("hidden");
                         upgradeCostEl.textContent = `$${nextCost}`;
-
-                        // Color code cost
                         if (STATE.money < nextCost) {
                             upgradeCostEl.classList.remove("bg-green-600", "border-green-400");
                             upgradeCostEl.classList.add("bg-red-600", "border-red-400");
@@ -2178,14 +2201,12 @@ container.addEventListener("mousemove", (e) => {
                         }
                     }
                 } else {
-                    // Max tier
                     if (hoveredUpgradeService === s) {
                         hoveredUpgradeService = null;
                         if (upgradeIndicator) upgradeIndicator.classList.add("hidden");
                     }
                 }
             } else {
-                // Not an upgradeable service or different type - trigger hide
                 if (hoveredUpgradeService && !hideUpgradeTimer) {
                     hideUpgradeTimer = setTimeout(() => {
                         hoveredUpgradeService = null;
@@ -2197,21 +2218,20 @@ container.addEventListener("mousemove", (e) => {
 
             showTooltip(e.clientX + 15, e.clientY + 15, content);
 
-            // Reset previous highlights
+            // Don't reset emissive for selected/multi-selected nodes
             STATE.services.forEach((svc) => {
-                if (svc !== s && svc.mesh.material.emissive)
+                if (svc !== s && !STATE.selectedNodeIds.has(svc.id) && svc.mesh.material.emissive)
                     svc.mesh.material.emissive.setHex(0x000000);
             });
         }
     } else {
         t.style.display = "none";
-        // Reset highlights when not hovering service
-        STATE.services.forEach((svc) => {
-            if (svc.mesh.material.emissive)
-                svc.mesh.material.emissive.setHex(0x000000);
-        });
-
-        // Hide upgrade indicator if visible (with delay)
+        // Don't wipe emissive on multi-selected nodes or link-target highlighted nodes
+        if (STATE.activeTool !== "connect" && STATE.selectedNodeIds.size === 0) {
+            STATE.services.forEach((svc) => {
+                if (svc.mesh.material.emissive) svc.mesh.material.emissive.setHex(0x000000);
+            });
+        }
         if (hoveredUpgradeService && !hideUpgradeTimer) {
             hideUpgradeTimer = setTimeout(() => {
                 hoveredUpgradeService = null;
@@ -2277,17 +2297,39 @@ function setupUITooltips() {
 setupUITooltips();
 
 container.addEventListener("mouseup", (e) => {
+    // Release panning
     if (e.button === 2 || e.button === 1) {
         isPanning = false;
         container.style.cursor = "default";
     }
+
+    // Release multi-node drag: snap all to grid
+    if (_mDragActive) {
+        _mDragActive = false;
+        _mDragOrigin = null;
+        _mDragBases.forEach(({ id }) => {
+            const ent = _ent(id);
+            if (!ent) return;
+            const sn = snapToGrid(ent.position);
+            ent.position.copy(sn);
+            if (ent.mesh) { ent.mesh.position.x = sn.x; ent.mesh.position.z = sn.z; }
+            if (id === 'internet' && STATE.internetNode.ring) {
+                STATE.internetNode.ring.position.x = sn.x;
+                STATE.internetNode.ring.position.z = sn.z;
+            }
+            updateConnectionsForNode(id);
+        });
+        _mDragBases = [];
+        container.style.cursor = "default";
+        _applyMultiGlow();
+        return;
+    }
+
+    // Release single-node drag
     if (isDraggingNode && draggedNode) {
         isDraggingNode = false;
-
         const snapped = snapToGrid(draggedNode.position);
-
         draggedNode.position.copy(snapped);
-
         if (draggedNode.mesh) {
             draggedNode.mesh.position.x = snapped.x;
             draggedNode.mesh.position.z = snapped.z;
@@ -2297,12 +2339,9 @@ container.addEventListener("mouseup", (e) => {
             STATE.internetNode.ring.position.x = snapped.x;
             STATE.internetNode.ring.position.z = snapped.z;
         }
-
         updateConnectionsForNode(draggedNode.id);
-
         draggedNode = null;
         container.style.cursor = "default";
-        return;
     }
 });
 
@@ -2789,8 +2828,28 @@ window.addEventListener("resize", () => {
 });
 
 document.addEventListener("keydown", (event) => {
+    // Escape: close link-hold → clear multi-select → clear connect → open menu
     if (event.key === "Escape") {
-        // Toggle main menu
+        if (STATE.linkHoldActive) {
+            STATE.linkHoldActive = false;
+            STATE.linkHoldSourceId = null;
+            _clearTargets();
+            _updateHoldBadge();
+            return;
+        }
+        if (STATE.selectedNodeIds.size > 0) {
+            STATE.selectedNodeIds.clear();
+            _applyMultiGlow();
+            _clearConns();
+            _hideBar();
+            return;
+        }
+        if (STATE.selectedNodeId && STATE.activeTool === "connect") {
+            STATE.selectedNodeId = null;
+            _clearTargets();
+            return;
+        }
+        // Original Escape: toggle main menu
         const menu = document.getElementById("main-menu-modal");
         if (menu.classList.contains("hidden")) {
             openMainMenu();
@@ -2799,17 +2858,35 @@ document.addEventListener("keydown", (event) => {
         }
         return;
     }
+
+    // L in Connect mode + source selected → promote to link-hold
+    if ((event.key === "l" || event.key === "L") && STATE.activeTool === "connect" && STATE.selectedNodeId) {
+        STATE.linkHoldActive   = true;
+        STATE.linkHoldSourceId = STATE.selectedNodeId;
+        STATE.selectedNodeId   = null;
+        _highlightTargets(STATE.linkHoldSourceId);
+        _updateHoldBadge();
+        return;
+    }
+
+    // Ctrl/Cmd+A in Select mode → select all nodes
+    if ((event.ctrlKey || event.metaKey) && (event.key === "a" || event.key === "A") && STATE.activeTool === "select") {
+        event.preventDefault();
+        STATE.selectedNodeIds.clear();
+        STATE.services.forEach(s => STATE.selectedNodeIds.add(s.id));
+        STATE.selectedNodeIds.add("internet");
+        _applyMultiGlow();
+        if (STATE.selectedNodeIds.size > 1) _showBar(STATE.selectedNodeIds);
+        return;
+    }
+
     if (event.key === "H" || event.key === "h") {
         document.getElementById("statsPanel").classList.toggle("hidden");
         document.getElementById("detailsPanel").classList.toggle("hidden");
         document.getElementById("objectivesPanel").classList.toggle("hidden");
     }
-    if (event.key === "R" || event.key === "r") {
-        resetCamera();
-    }
-    if (event.key === "T" || event.key === "t") {
-        toggleView();
-    }
+    if (event.key === "R" || event.key === "r") { resetCamera(); }
+    if (event.key === "T" || event.key === "t") { toggleView(); }
 });
 
 function toggleView() {
@@ -3310,3 +3387,471 @@ function restoreConnections(savedConnections, internetConnections) {
         createConnection(connData.from, connData.to);
     });
 }
+
+// ==================== PATCH: MULTI-SELECT + LINK-HOLD + SOUND PANEL ====================
+
+// Extended state for new features
+STATE.selectedNodeIds  = new Set();
+STATE.linkHoldSourceId = null;
+STATE.linkHoldActive   = false;
+
+// Multi-drag state
+let _mDragActive = false;
+let _mDragOrigin = null;
+let _mDragBases  = [];
+
+// =============================================================================
+// game-patch.js  —  load AFTER game.js in index.html
+//
+//   1. Multi-select nodes  (Shift+click, Ctrl+A)
+//      + bulk LINK / UNLINK / DELETE / GROUP MOVE
+//   2. Link-hold mode  (L key while source is selected in Connect tool)
+//      — pin a source, click targets repeatedly without re-selecting
+//   3. Select mode: highlight outgoing (cyan) / incoming (orange) connections
+//   4. Connect mode: highlight valid (green) / invalid (dim) target nodes
+//   5. Per-category sound settings wired into the new SoundService API
+//   6. Scrollable HUD panel content (health, finances, modals)
+// =============================================================================
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 1. STATE EXTENSIONS
+// ─────────────────────────────────────────────────────────────────────────────
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 2. COLOURS
+// ─────────────────────────────────────────────────────────────────────────────
+
+const _C = {
+    LINE_DEFAULT:  CONFIG.colors.line,
+    LINE_OUTGOING: 0x22d3ee,   // cyan   — traffic flows out
+    LINE_INCOMING: 0xfb923c,   // orange — traffic flows in
+    NODE_SELECTED: 0x38bdf8,   // blue glow — selected / source
+    NODE_LINKABLE: 0x4ade80,   // green glow — valid link target
+    NODE_NOPE:     0x374151,   // dim  — invalid link target
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 3. HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+
+function _ent(id) {
+    return id === 'internet'
+        ? STATE.internetNode
+        : STATE.services.find(s => s.id === id);
+}
+
+function _canConnect(fromId, toId) {
+    if (fromId === toId) return false;
+    const f = _ent(fromId), t = _ent(toId);
+    if (!f || !t || f.connections.includes(toId)) return false;
+    const a = f.type, b = t.type;
+    return (
+        (a === 'internet' && ['waf','alb','cdn','apigw'].includes(b))  ||
+        (a === 'waf'      && ['alb','sqs','apigw'].includes(b))        ||
+        (a === 'sqs'      && ['alb','compute'].includes(b))            ||
+        (a === 'alb'      && ['sqs','compute'].includes(b))            ||
+        (a === 'compute'  && ['cache','db','s3','nosql'].includes(b))  ||
+        (a === 'cache'    && ['db','s3','nosql'].includes(b))          ||
+        (a === 'cdn'      && b === 's3')                               ||
+        (a === 'apigw'    && ['alb','sqs','compute'].includes(b))
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 4. VISUAL HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+
+function _highlightConns(nodeId) {
+    STATE.connections.forEach(c => {
+        if (!c.mesh?.material) return;
+        c.mesh.material.color.setHex(
+            c.from === nodeId ? _C.LINE_OUTGOING :
+            c.to   === nodeId ? _C.LINE_INCOMING :
+                                _C.LINE_DEFAULT
+        );
+    });
+}
+
+function _clearConns() {
+    STATE.connections.forEach(c => {
+        if (c.mesh?.material) c.mesh.material.color.setHex(_C.LINE_DEFAULT);
+    });
+}
+
+function _highlightTargets(srcId) {
+    ['internet', ...STATE.services.map(s => s.id)].forEach(id => {
+        const e = _ent(id);
+        if (!e?.mesh?.material?.emissive) return;
+        e.mesh.material.emissive.setHex(
+            id === srcId           ? _C.NODE_SELECTED :
+            _canConnect(srcId, id) ? _C.NODE_LINKABLE :
+                                     _C.NODE_NOPE
+        );
+    });
+}
+
+function _clearTargets() {
+    ['internet', ...STATE.services.map(s => s.id)].forEach(id => {
+        const e = _ent(id);
+        if (e?.mesh?.material?.emissive) e.mesh.material.emissive.setHex(0x000000);
+    });
+}
+
+function _applyMultiGlow() {
+    STATE.services.forEach(s => {
+        if (!s.mesh?.material?.emissive) return;
+        s.mesh.material.emissive.setHex(
+        );
+    });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 5. MULTI-SELECT BAR
+// ─────────────────────────────────────────────────────────────────────────────
+
+function _showBar(ids) {
+    let bar = document.getElementById('multi-select-bar');
+    if (!bar) {
+        bar = document.createElement('div');
+        bar.id = 'multi-select-bar';
+        bar.className = 'multi-select-bar';
+        document.body.appendChild(bar);
+    }
+    bar.innerHTML = `
+        <span class="msb-count">${ids.size} selected</span>
+        <button class="msb-btn msb-btn--cyan"
+            onclick="window.multiLinkSelected()"
+            title="Connect selected nodes in sequence">⇢ LINK</button>
+        <button class="msb-btn msb-btn--orange"
+            onclick="window.multiUnlinkSelected()"
+            title="Remove connections between selected nodes">⇢ UNLINK</button>
+        <button class="msb-btn msb-btn--red"
+            onclick="window.multiDeleteSelected()"
+            title="Delete all selected nodes">✕ DELETE</button>
+        <button class="msb-btn msb-btn--ghost"
+            onclick="window.clearMultiSelect()">✕ CLEAR</button>
+    `;
+    bar.style.display = 'flex';
+}
+
+function _hideBar() {
+    const bar = document.getElementById('multi-select-bar');
+    if (bar) bar.style.display = 'none';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 6. LINK-HOLD BADGE
+// ─────────────────────────────────────────────────────────────────────────────
+
+function _updateHoldBadge() {
+    let badge = document.getElementById('link-hold-badge');
+    if (STATE.linkHoldActive && STATE.linkHoldSourceId) {
+        if (!badge) {
+            badge = document.createElement('div');
+            badge.id = 'link-hold-badge';
+            badge.className = 'link-hold-badge';
+            document.body.appendChild(badge);
+        }
+        const src  = _ent(STATE.linkHoldSourceId);
+        const name = STATE.linkHoldSourceId === 'internet'
+            ? (typeof i18n !== 'undefined' ? i18n.t('internet') : 'Internet')
+            : (src?.config?.name || STATE.linkHoldSourceId);
+        badge.innerHTML = `
+            <span class="lhb-icon">⇢</span>
+            <span>SOURCE LOCKED: <strong>${name}</strong></span>
+            <button onclick="window.clearLinkHold()" class="lhb-clear">✕ ESC</button>
+        `;
+        badge.style.display = 'flex';
+    } else {
+        if (badge) badge.style.display = 'none';
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 7. PUBLIC ACTIONS
+// ─────────────────────────────────────────────────────────────────────────────
+
+window.clearMultiSelect = function () {
+    STATE.selectedNodeIds.clear();
+    _applyMultiGlow();
+    _clearConns();
+    _hideBar();
+};
+
+window.clearLinkHold = function () {
+    STATE.linkHoldActive   = false;
+    STATE.linkHoldSourceId = null;
+    _clearTargets();
+    _updateHoldBadge();
+};
+
+window.multiLinkSelected = function () {
+    const ids    = [...STATE.selectedNodeIds];
+    let   linked = 0;
+    for (let i = 0; i < ids.length - 1; i++) {
+        if (_canConnect(ids[i], ids[i + 1])) {
+            createConnection(ids[i], ids[i + 1]);
+            linked++;
+        }
+    }
+    if (linked > 0) STATE.sound?.playConnect();
+    window.clearMultiSelect();
+};
+
+window.multiUnlinkSelected = function () {
+    const ids     = [...STATE.selectedNodeIds];
+    let   removed = 0;
+    ids.forEach(a => ids.forEach(b => {
+        if (a !== b && deleteConnection(a, b)) removed++;
+    }));
+    if (removed > 0) STATE.sound?.playDelete();
+    window.clearMultiSelect();
+};
+
+window.multiDeleteSelected = function () {
+    const ids = [...STATE.selectedNodeIds];
+    window.clearMultiSelect();
+    ids.forEach(id => { if (id !== 'internet') deleteObject(id); });
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 10. PER-CATEGORY SOUND PANEL
+// ─────────────────────────────────────────────────────────────────────────────
+
+(function soundPanel() {
+
+    // Internal slider state  (vols stored as 0-1 floats)
+    const _s = {
+        master:   { vol: 0.30, on: true },
+        bgm:      { vol: 0.20, on: true },
+        ui:       { vol: 0.45, on: true },
+        events:   { vol: 0.60, on: true },
+        gameplay: { vol: 0.50, on: true },
+    };
+
+    function _svc() { return STATE.sound; }
+
+    // Push a category's current state into SoundService
+    function _push(cat) {
+        const svc = _svc();
+        if (!svc) return;
+
+        // Update button label & class
+        const btn = document.getElementById('mute-' + cat);
+        if (btn) {
+            btn.textContent = _s[cat].on ? 'ON' : 'OFF';
+            btn.className   = 'sound-mute-btn ' + (_s[cat].on ? 'sound-mute-btn--on' : 'sound-mute-btn--off');
+        }
+
+        // Update toolbar icon
+        const icon = document.getElementById('mute-icon');
+        if (icon) icon.textContent = (!_s.master.on || _s.master.vol === 0) ? '🔇' : '🔊';
+
+        // Call the clean SoundService setter
+        const v = _s[cat].vol;
+        const off = !_s[cat].on;
+        if (cat === 'master')   svc.setMasterVolume(v, off);
+        if (cat === 'bgm')      svc.setBgmVolume(v, off);
+        if (cat === 'ui')       svc.setUiVolume(v, off);
+        if (cat === 'gameplay') svc.setGameplayVolume(v, off);
+        if (cat === 'events')   svc.setEventsVolume(v, off);
+    }
+
+    // ── Public API called by HTML oninput / onclick ───────────────────────────
+
+    window._patchSetVolume = function (cat, rawVal) {
+        _s[cat].vol = parseInt(rawVal) / 100;
+        const el = document.getElementById('val-' + cat);
+        if (el) el.textContent = rawVal;
+        _push(cat);
+    };
+
+    window._patchToggleCategory = function (cat) {
+        _s[cat].on = !_s[cat].on;
+        _push(cat);
+    };
+
+    window.muteAllSound = function () {
+        Object.keys(_s).forEach(c => { _s[c].on = false; _push(c); });
+    };
+
+    window.unmuteAllSound = function () {
+        Object.keys(_s).forEach(c => { _s[c].on = true; _push(c); });
+    };
+
+    // Override game.js toggleMute to route through our system
+    window.toggleMute = function () {
+        window._patchToggleCategory('master');
+        return !_s.master.on; // true = muted
+    };
+
+    // ── Panel open / close ────────────────────────────────────────────────────
+
+    window.toggleSoundPanel = function () {
+        const p = document.getElementById('sound-panel');
+        if (!p) return;
+        const opening = p.style.display === 'none' || p.style.display === '';
+        p.style.display = opening ? 'block' : 'none';
+        // Attempt category gains init if AudioContext now running
+        if (opening) _svc()?._initCategoryGains();
+    };
+
+    // Close panel when clicking outside the sound wrapper
+    document.addEventListener('click', function (e) {
+        const wrap = document.getElementById('sound-btn-wrap');
+        if (wrap && !wrap.contains(e.target)) {
+            const p = document.getElementById('sound-panel');
+            if (p) p.style.display = 'none';
+        }
+    }, true);
+
+    // Route menu mute button through our system
+    //setTimeout(() => {
+    //    const mb = document.getElementById('menu-mute-btn');
+    //    if (mb) mb.onclick = () => window.toggleMute();
+    //}, 300);
+
+})();
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 11. INJECTED CSS
+// ─────────────────────────────────────────────────────────────────────────────
+
+(function injectCSS() {
+    const s = document.createElement('style');
+    s.textContent = `
+        /* ── Link-hold badge ──────────────────────────────────────── */
+        .link-hold-badge {
+            position:fixed; top:68px; left:50%; transform:translateX(-50%);
+            z-index:300; align-items:center; gap:8px; display:none;
+            background:rgba(8,14,26,.96);
+            border:1px solid rgba(34,211,238,.45); border-radius:6px;
+            padding:5px 14px;
+            font-family:'Share Tech Mono',monospace; font-size:11px; color:#22d3ee;
+            box-shadow:0 0 24px rgba(34,211,238,.2); pointer-events:auto;
+        }
+        .lhb-icon { font-size:15px; }
+        .lhb-clear {
+            background:rgba(248,113,113,.15); border:1px solid rgba(248,113,113,.3);
+            color:#f87171; border-radius:3px; padding:1px 7px;
+            cursor:pointer; font-size:9px;
+            font-family:'Share Tech Mono',monospace;
+        }
+
+        /* ── Multi-select action bar ──────────────────────────────── */
+        .multi-select-bar {
+            position:fixed; bottom:110px; left:50%; transform:translateX(-50%);
+            z-index:300; align-items:center; gap:5px; display:none;
+            background:rgba(8,14,26,.97);
+            border:1px solid rgba(56,189,248,.18); border-radius:8px;
+            padding:6px 10px;
+            font-family:'Share Tech Mono',monospace;
+            box-shadow:0 -4px 24px rgba(0,0,0,.6); pointer-events:auto;
+        }
+        .msb-count {
+            font-size:9px; color:#475569;
+            padding-right:7px; border-right:1px solid rgba(255,255,255,.08); margin-right:2px;
+        }
+        .msb-btn {
+            padding:4px 10px; border-radius:4px;
+            font-family:'Share Tech Mono',monospace; font-size:9px;
+            font-weight:700; letter-spacing:.07em; cursor:pointer; border:1px solid;
+            transition:filter .12s;
+        }
+        .msb-btn--cyan   { background:rgba(34,211,238,.1);  color:#22d3ee; border-color:rgba(34,211,238,.3); }
+        .msb-btn--orange { background:rgba(251,146,60,.1);  color:#fb923c; border-color:rgba(251,146,60,.3); }
+        .msb-btn--red    { background:rgba(248,113,113,.1); color:#f87171; border-color:rgba(248,113,113,.3); }
+        .msb-btn--ghost  { background:rgba(255,255,255,.04);color:#64748b; border-color:rgba(255,255,255,.1); }
+        .msb-btn:hover   { filter:brightness(1.35); }
+
+        /* ── Sound panel ──────────────────────────────────────────── */
+        .sound-panel {
+            position:absolute; bottom:calc(100% + 8px); left:50%;
+            transform:translateX(-50%); width:268px; display:none;
+            background:rgba(8,12,22,.98);
+            border:1px solid rgba(56,189,248,.2); border-radius:8px; padding:12px;
+            box-shadow:0 -8px 32px rgba(0,0,0,.8),0 0 0 1px rgba(56,189,248,.05);
+            backdrop-filter:blur(20px); z-index:200; pointer-events:auto;
+            animation:_spIn .18s ease-out;
+        }
+        @keyframes _spIn {
+            from { opacity:0; transform:translateX(-50%) translateY(6px); }
+            to   { opacity:1; transform:translateX(-50%) translateY(0); }
+        }
+        .sound-panel-header {
+            display:flex; justify-content:space-between; align-items:center;
+            margin-bottom:10px; padding-bottom:8px;
+            border-bottom:1px solid rgba(255,255,255,.06);
+            font-family:'Share Tech Mono',monospace; font-size:9px;
+            font-weight:700; letter-spacing:.12em; color:#22d3ee; text-transform:uppercase;
+        }
+        .sound-close-btn {
+            width:18px; height:18px; display:flex; align-items:center; justify-content:center;
+            background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1);
+            border-radius:3px; color:#64748b; cursor:pointer; font-size:9px;
+            transition:all .15s; font-family:inherit;
+        }
+        .sound-close-btn:hover { background:rgba(255,255,255,.1); color:#fff; }
+        .sound-row {
+            display:flex; align-items:center; justify-content:space-between;
+            gap:5px; margin-bottom:6px;
+        }
+        .sound-row-left  { display:flex; align-items:center; gap:5px; width:76px; flex-shrink:0; }
+        .sound-cat-icon  { font-size:12px; width:16px; text-align:center; }
+        .sound-cat-label {
+            font-size:9px; font-weight:700; letter-spacing:.1em;
+            color:#64748b; text-transform:uppercase;
+            font-family:'Share Tech Mono',monospace;
+        }
+        .sound-row-right { display:flex; align-items:center; gap:5px; flex:1; }
+        .sound-mute-btn  {
+            font-size:8px; font-weight:700; padding:2px 5px; border-radius:3px;
+            cursor:pointer; font-family:'Share Tech Mono',monospace;
+            letter-spacing:.05em; transition:all .15s; flex-shrink:0;
+            border:1px solid; min-width:28px; text-align:center;
+        }
+        .sound-mute-btn--on  { background:rgba(74,222,128,.12); border-color:rgba(74,222,128,.3);  color:#4ade80; }
+        .sound-mute-btn--off { background:rgba(248,113,113,.12); border-color:rgba(248,113,113,.3); color:#f87171; }
+        .sound-slider {
+            flex:1; height:3px; background:rgba(255,255,255,.08);
+            border-radius:2px; cursor:pointer; accent-color:#38bdf8; min-width:0;
+        }
+        .sound-val {
+            font-size:9px; color:#334155;
+            font-family:'Share Tech Mono',monospace;
+            width:22px; text-align:right; flex-shrink:0;
+        }
+        .sound-divider { height:1px; background:rgba(255,255,255,.05); margin:7px 0; }
+        .sound-action-btn {
+            padding:4px 8px; border-radius:4px;
+            font-family:'Share Tech Mono',monospace; font-size:9px;
+            font-weight:700; letter-spacing:.08em; cursor:pointer;
+            transition:all .15s; text-align:center; border:1px solid;
+        }
+        .sound-action-btn--red   { background:rgba(248,113,113,.1); border-color:rgba(248,113,113,.25); color:#f87171; }
+        .sound-action-btn--green { background:rgba(74,222,128,.1);  border-color:rgba(74,222,128,.25);  color:#4ade80; }
+        .sound-action-btn--red:hover   { background:rgba(248,113,113,.2); }
+        .sound-action-btn--green:hover { background:rgba(74,222,128,.2); }
+
+        /* ── Scrollable HUD content ───────────────────────────────── */
+        #health-panel-content,
+        #finances-panel-content {
+            max-height:220px; overflow-y:auto;
+            scrollbar-width:thin; scrollbar-color:rgba(56,189,248,.2) transparent;
+        }
+        #health-panel-content::-webkit-scrollbar,
+        #finances-panel-content::-webkit-scrollbar { width:3px; }
+        #health-panel-content::-webkit-scrollbar-thumb,
+        #finances-panel-content::-webkit-scrollbar-thumb {
+            background:rgba(56,189,248,.2); border-radius:2px;
+        }
+
+        /* Modals: inner content scrolls, never clips */
+        #faq-modal > div { max-height:90vh; overflow-y:auto; }
+        #modal > div     { max-height:85vh; overflow-y:auto; }
+        #tutorial-popup  { max-height:80vh; overflow-y:auto; }
+    `;
+    document.head.appendChild(s);
+})();
