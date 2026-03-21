@@ -754,8 +754,215 @@ body {
   color: #e2e8f0;
 }
 
-/* ── SCROLLBAR ── */
+/* ── RIGHT COLUMN SCROLL ── */
+.right-column-scroll {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+  /* let panels be pointer-interactive but column itself non-interactive */
+  padding-right: 2px; /* prevent clipping box-shadow */
+}
+
+.right-column-scroll::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+
+/* Ensure panels inside take full width */
+.right-column-scroll > * {
+  width: 100%;
+  flex-shrink: 0;
+}
+
+/* ── SOUND PANEL ── */
+.sound-panel {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 260px;
+  background: rgba(8, 12, 22, 0.98);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-radius: var(--radius);
+  padding: 12px;
+  box-shadow: 0 -8px 32px rgba(0,0,0,0.8), 0 0 0 1px rgba(56,189,248,0.06);
+  backdrop-filter: blur(20px);
+  z-index: 200;
+  pointer-events: auto;
+  animation: soundPanelIn 0.18s ease-out;
+}
+
+@keyframes soundPanelIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(6px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.sound-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.sound-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 7px;
+}
+
+.sound-row-left {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 76px;
+  flex-shrink: 0;
+}
+
+.sound-cat-icon {
+  font-size: 12px;
+  line-height: 1;
+  width: 16px;
+  text-align: center;
+}
+
+.sound-cat-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.sound-row-right {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: 1;
+}
+
+.sound-mute-btn {
+  font-size: 8px;
+  font-weight: 700;
+  padding: 2px 5px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: 'Share Tech Mono', monospace;
+  letter-spacing: 0.05em;
+  transition: all 0.15s;
+  flex-shrink: 0;
+  border: 1px solid;
+  min-width: 28px;
+  text-align: center;
+}
+
+.sound-mute-btn--on {
+  background: rgba(74,222,128,0.12);
+  border-color: rgba(74,222,128,0.3);
+  color: #4ade80;
+}
+
+.sound-mute-btn--on:hover {
+  background: rgba(74,222,128,0.22);
+}
+
+.sound-mute-btn--off {
+  background: rgba(248,113,113,0.12);
+  border-color: rgba(248,113,113,0.3);
+  color: #f87171;
+}
+
+.sound-mute-btn--off:hover {
+  background: rgba(248,113,113,0.22);
+}
+
+.sound-slider {
+  flex: 1;
+  height: 3px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 2px;
+  cursor: pointer;
+  accent-color: var(--accent);
+  min-width: 0;
+}
+
+.sound-val {
+  font-size: 9px;
+  color: var(--text-muted);
+  font-family: 'Share Tech Mono', monospace;
+  width: 22px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.sound-divider {
+  height: 1px;
+  background: rgba(255,255,255,0.05);
+  margin: 8px 0;
+}
+
+.sound-action-btn {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: center;
+  border: 1px solid;
+}
+
+.sound-action-btn--red {
+  background: rgba(248,113,113,0.1);
+  border-color: rgba(248,113,113,0.25);
+  color: #f87171;
+}
+
+.sound-action-btn--red:hover {
+  background: rgba(248,113,113,0.2);
+}
+
+.sound-action-btn--green {
+  background: rgba(74,222,128,0.1);
+  border-color: rgba(74,222,128,0.25);
+  color: #4ade80;
+}
+
+.sound-action-btn--green:hover {
+  background: rgba(74,222,128,0.2);
+}
+
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+/* ── MLOps mode button ──────────────────────────────────────────────────── */
+.modal-btn--mlops {
+    background: rgba(124,58,237,.15);
+    color: #c084fc;
+    border-color: rgba(124,58,237,.3);
+    position: relative;
+}
+.modal-btn--mlops:hover {
+    background: rgba(124,58,237,.25);
+    box-shadow: 0 0 20px rgba(124,58,237,.2);
+}
+.modal-badge-soon {
+    display: inline-block;
+    font-size: 7px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    padding: 1px 5px;
+    border-radius: 3px;
+    background: rgba(124,58,237,.3);
+    border: 1px solid rgba(124,58,237,.4);
+    color: #a78bfa;
+    vertical-align: middle;
+    margin-left: 6px;
+    position: relative;
+    top: -1px;
+}

@@ -6,6 +6,36 @@
     <meta name="viewport"
       content="width=device-width, initial-scale=1.0, user-scalable=no" />
     <title>SERVER: Survival Protocol</title>
+
+    <!-- ── App Icons ─────────────────────────────────────────────────────────── -->
+    <!-- Standard favicon -->
+    <link rel="icon" type="image/svg+xml" href="assets/icons/icon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32"
+      href="assets/icons/icon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16"
+      href="assets/icons/icon-16.png" />
+    <!-- Apple touch icon (iOS home screen) -->
+    <link rel="apple-touch-icon" sizes="180x180"
+      href="assets/icons/icon-180.png" />
+    <!-- Android / Chrome -->
+    <link rel="icon" type="image/png" sizes="192x192"
+      href="assets/icons/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="512x512"
+      href="assets/icons/icon-512.png" />
+    <!-- Windows taskbar / pinned site -->
+    <meta name="msapplication-TileColor" content="#050505" />
+    <meta name="msapplication-TileImage" content="assets/icons/icon-144.png" />
+    <!-- Web App Manifest (Android "Add to Home Screen") -->
+    <link rel="manifest" href="assets/icons/manifest.json" />
+    <!-- Theme colour for mobile browser chrome -->
+    <meta name="theme-color" content="#050505" />
+    <!-- OG / social card -->
+    <meta property="og:title" content="SERVER: Survival Protocol" />
+    <meta property="og:description"
+      content="Build and scale cloud infrastructure to survive endless traffic. A tower-defense for Cloud Architects." />
+    <meta property="og:image" content="assets/icons/og-image.png" />
+    <meta property="og:type" content="website" />
+    <!-- ── End Icons ─────────────────────────────────────────────────────────── -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script
       src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -578,11 +608,12 @@
             <button id="tool-mute" class="tool-btn"
               onclick="toggleSoundPanel()">
               <span class="tool-icon" id="mute-icon">🔊</span>
-              <span class="tool-label">SOUND</span>
+              <span class="tool-label" data-i18n="sound_label">SOUND</span>
             </button>
             <div id="sound-panel" class="sound-panel" style="display:none">
               <div class="sound-panel-header">
-                <span>♪ AUDIO SETTINGS</span>
+                <span>♪ <span data-i18n="sound_settings">Audio
+                    Settings</span></span>
                 <button class="sound-close-btn"
                   onclick="toggleSoundPanel()">✕</button>
               </div>
@@ -590,12 +621,13 @@
               <div class="sound-row">
                 <div class="sound-row-left">
                   <span class="sound-cat-icon">🔈</span>
-                  <span class="sound-cat-label">MASTER</span>
+                  <span class="sound-cat-label"
+                    data-i18n="sound_master">Master</span>
                 </div>
                 <div class="sound-row-right">
                   <button onclick="_patchToggleCategory('master')"
-                    id="mute-master"
-                    class="sound-mute-btn sound-mute-btn--on">ON</button>
+                    id="mute-master" class="sound-mute-btn sound-mute-btn--on"
+                    data-i18n-sound="master">ON</button>
                   <input type="range" min="0" max="100" value="30"
                     class="sound-slider" id="vol-master"
                     oninput="_patchSetVolume('master', this.value)">
@@ -607,11 +639,13 @@
               <div class="sound-row">
                 <div class="sound-row-left">
                   <span class="sound-cat-icon">🎵</span>
-                  <span class="sound-cat-label">MUSIC</span>
+                  <span class="sound-cat-label"
+                    data-i18n="sound_music">Music</span>
                 </div>
                 <div class="sound-row-right">
                   <button onclick="_patchToggleCategory('bgm')" id="mute-bgm"
-                    class="sound-mute-btn sound-mute-btn--on">ON</button>
+                    class="sound-mute-btn sound-mute-btn--on"
+                    data-i18n-sound="bgm">ON</button>
                   <input type="range" min="0" max="100" value="20"
                     class="sound-slider" id="vol-bgm"
                     oninput="_patchSetVolume('bgm', this.value)">
@@ -622,11 +656,13 @@
               <div class="sound-row">
                 <div class="sound-row-left">
                   <span class="sound-cat-icon">🖱</span>
-                  <span class="sound-cat-label">UI SFX</span>
+                  <span class="sound-cat-label" data-i18n="sound_ui">UI
+                    SFX</span>
                 </div>
                 <div class="sound-row-right">
                   <button onclick="_patchToggleCategory('ui')" id="mute-ui"
-                    class="sound-mute-btn sound-mute-btn--on">ON</button>
+                    class="sound-mute-btn sound-mute-btn--on"
+                    data-i18n-sound="ui">ON</button>
                   <input type="range" min="0" max="100" value="45"
                     class="sound-slider" id="vol-ui"
                     oninput="_patchSetVolume('ui', this.value)">
@@ -637,12 +673,13 @@
               <div class="sound-row">
                 <div class="sound-row-left">
                   <span class="sound-cat-icon">⚡</span>
-                  <span class="sound-cat-label">EVENTS</span>
+                  <span class="sound-cat-label"
+                    data-i18n="sound_events">Events</span>
                 </div>
                 <div class="sound-row-right">
                   <button onclick="_patchToggleCategory('events')"
-                    id="mute-events"
-                    class="sound-mute-btn sound-mute-btn--on">ON</button>
+                    id="mute-events" class="sound-mute-btn sound-mute-btn--on"
+                    data-i18n-sound="events">ON</button>
                   <input type="range" min="0" max="100" value="60"
                     class="sound-slider" id="vol-events"
                     oninput="_patchSetVolume('events', this.value)">
@@ -653,12 +690,13 @@
               <div class="sound-row">
                 <div class="sound-row-left">
                   <span class="sound-cat-icon">🎮</span>
-                  <span class="sound-cat-label">GAMEPLAY</span>
+                  <span class="sound-cat-label"
+                    data-i18n="sound_gameplay">Gameplay</span>
                 </div>
                 <div class="sound-row-right">
                   <button onclick="_patchToggleCategory('gameplay')"
-                    id="mute-gameplay"
-                    class="sound-mute-btn sound-mute-btn--on">ON</button>
+                    id="mute-gameplay" class="sound-mute-btn sound-mute-btn--on"
+                    data-i18n-sound="gameplay">ON</button>
                   <input type="range" min="0" max="100" value="50"
                     class="sound-slider" id="vol-gameplay"
                     oninput="_patchSetVolume('gameplay', this.value)">
@@ -668,11 +706,12 @@
               <div class="sound-divider"></div>
               <div style="display:flex;gap:4px;margin-top:4px;">
                 <button onclick="muteAllSound()"
-                  class="sound-action-btn sound-action-btn--red"
-                  style="flex:1">MUTE ALL</button>
+                  class="sound-action-btn sound-action-btn--red" style="flex:1"
+                  data-i18n="sound_mute_all">Mute All</button>
                 <button onclick="unmuteAllSound()"
                   class="sound-action-btn sound-action-btn--green"
-                  style="flex:1">UNMUTE ALL</button>
+                  style="flex:1" data-i18n="sound_unmute_all">Unmute
+                  All</button>
               </div>
             </div>
           </div>
@@ -848,10 +887,10 @@
     <div id="main-menu-modal"
       class="absolute inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm">
       <div class="modal-box max-w-sm w-full text-center relative">
-        <!-- <button id="menu-mute-btn" onclick="toggleMute()"
-        class="absolute top-4 right-4 text-gray-400 hover:text-white transition p-2 rounded pulse-green">
-        <span id="menu-mute-icon" class="text-xl">🔇</span>
-      </button> -->
+        <!--<button id="menu-mute-btn" onclick="toggleMute()"
+          class="absolute top-4 right-4 text-gray-400 hover:text-white transition p-2 rounded pulse-green">
+          <span id="menu-mute-icon" class="text-xl">🔇</span>
+        </button>-->
 
         <div
           class="text-cyan-400/60 text-xs font-mono tracking-[0.4em] mb-2">CLOUD
@@ -874,6 +913,9 @@
           <button onclick="startSandbox()" data-i18n="sandbox_mode"
             class="modal-btn modal-btn--purple w-full text-lg py-3">Sandbox
             Mode</button>
+          <button onclick="startMLOps()" data-i18n="mlops_mode"
+            class="modal-btn modal-btn--mlops w-full text-lg py-3">⚙ MLOps Mode
+            <span class="modal-badge-soon">SOON</span></button>
           <button
             onclick="document.getElementById('upload-file-input')?.click()"
             id="upload-btn" data-i18n="upload_game"
@@ -1126,5 +1168,80 @@
     <script src="src/services/SoundService.js"></script>
     <script src="src/tutorial.js"></script>
     <script src="game.js"></script>
+    <script>
+  // ── Sound panel ON/OFF i18n re-translation ────────────────────────────────
+  // The ON/OFF toggle buttons are set by _patchToggleCategory() in game.js.
+  // When the locale changes we need to re-set their text using the current
+  // sound_on / sound_off translation keys while keeping the correct on/off state.
+  (function hookSoundI18n() {
+      const CATS = ['master', 'bgm', 'ui', 'events', 'gameplay'];
+
+      function retranslateSoundButtons() {
+          if (typeof i18n === 'undefined') return;
+          const onText  = i18n.t('sound_on')  || 'ON';
+          const offText = i18n.t('sound_off') || 'OFF';
+          CATS.forEach(cat => {
+              const btn = document.getElementById('mute-' + cat);
+              if (!btn) return;
+              // Determine current state from CSS class
+              const isOn = btn.classList.contains('sound-mute-btn--on');
+              btn.textContent = isOn ? onText : offText;
+          });
+      }
+
+      // Re-translate when locale changes
+      // Patch i18n.setLocale if available
+      function patchI18n() {
+          if (typeof i18n === 'undefined' || !i18n.setLocale) return;
+          const orig = i18n.setLocale.bind(i18n);
+          i18n.setLocale = function(locale) {
+              orig(locale);
+              retranslateSoundButtons();
+          };
+      }
+
+      // Run after everything is loaded
+      if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', () => { patchI18n(); retranslateSoundButtons(); });
+      } else {
+          patchI18n();
+          retranslateSoundButtons();
+      }
+  })();
+
+  // ── MLOps mode stub (coming soon) ─────────────────────────────────────────
+  window.startMLOps = function() {
+      document.getElementById('main-menu-modal').classList.add('hidden');
+      // TODO: implement full MLOps mode
+      // For now show a coming-soon modal / toast
+      const toast = document.createElement('div');
+      toast.style.cssText = [
+          'position:fixed','top:50%','left:50%',
+          'transform:translate(-50%,-50%)',
+          'background:rgba(8,14,26,.98)',
+          'border:1px solid rgba(168,85,247,.4)',
+          'border-radius:12px','padding:32px 40px',
+          'text-align:center','z-index:9999',
+          'font-family:"Share Tech Mono",monospace',
+          'color:#c084fc','max-width:380px',
+          'box-shadow:0 0 40px rgba(168,85,247,.3)',
+      ].join(';');
+      toast.innerHTML = `
+          <div style="font-size:32px;margin-bottom:12px">⚙</div>
+          <div style="font-size:18px;font-weight:700;letter-spacing:.1em;margin-bottom:8px">MLOPS MODE</div>
+          <div style="font-size:11px;color:#64748b;margin-bottom:20px;line-height:1.6">
+              Training clusters, inference endpoints, feature stores<br>
+              and model registries are loading…<br><br>
+              <span style="color:#7c3aed">Coming soon.</span>
+          </div>
+          <button onclick="this.parentElement.remove();document.getElementById('main-menu-modal').classList.remove('hidden')"
+              style="background:rgba(168,85,247,.15);border:1px solid rgba(168,85,247,.3);color:#c084fc;
+              padding:8px 24px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:11px;
+              letter-spacing:.08em">BACK TO MENU</button>
+      `;
+      document.body.appendChild(toast);
+  };
+  </script>
+    <script src="game-patch.js"></script>
   </body>
 </html>

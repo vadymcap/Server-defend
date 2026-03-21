@@ -438,5 +438,17 @@ const FR_TRANSLATIONS = {
     "tip_apigw": "Ajoutez une passerelle API pour une dégradation gracieuse pendant les pics de trafic",
     "tip_nosql": "Utilisez NoSQL pour READ/WRITE plus rapide, gardez SQL pour les requêtes SEARCH",
     "apigw_desc_short": "Limite le trafic ($70)",
-    "nosql_desc_short": "DB READ/WRITE rapide ($80)"
+    "nosql_desc_short": "DB READ/WRITE rapide ($80)",
+    "sound_settings": "Paramètres de son",
+    "sound_master": "Volume principal",
+    "sound_music": "Musique",
+    "sound_ui": "UI",
+    "sound_events": "D'événements",
+    "sound_gameplay": "Gameplay",
+    "sound_mute_all": "Tout silencer",
+    "sound_unmute_all": "Tout réactiver",
+    "sound_on": "ON",
+    "sound_off": "OFF",
+    "sound_label": "VOLUME",
+    "mlops_mode": "MLOps Mode",
 };

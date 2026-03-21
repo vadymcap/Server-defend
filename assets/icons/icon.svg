@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background -->
+  <rect width="512" height="512" rx="80" fill="#050505"/>
+
+  <!-- Grid dots (background texture) -->
+  <g fill="#1a1a1a" opacity="0.8">
+    <circle cx="80"  cy="80"  r="3"/>
+    <circle cx="160" cy="80"  r="3"/>
+    <circle cx="240" cy="80"  r="3"/>
+    <circle cx="320" cy="80"  r="3"/>
+    <circle cx="400" cy="80"  r="3"/>
+    <circle cx="480" cy="80"  r="3"/>
+    <circle cx="80"  cy="160" r="3"/>
+    <circle cx="160" cy="160" r="3"/>
+    <circle cx="240" cy="160" r="3"/>
+    <circle cx="320" cy="160" r="3"/>
+    <circle cx="400" cy="160" r="3"/>
+    <circle cx="480" cy="160" r="3"/>
+    <circle cx="80"  cy="240" r="3"/>
+    <circle cx="160" cy="240" r="3"/>
+    <circle cx="240" cy="240" r="3"/>
+    <circle cx="320" cy="240" r="3"/>
+    <circle cx="400" cy="240" r="3"/>
+    <circle cx="480" cy="240" r="3"/>
+    <circle cx="80"  cy="320" r="3"/>
+    <circle cx="160" cy="320" r="3"/>
+    <circle cx="240" cy="320" r="3"/>
+    <circle cx="320" cy="320" r="3"/>
+    <circle cx="400" cy="320" r="3"/>
+    <circle cx="480" cy="320" r="3"/>
+    <circle cx="80"  cy="400" r="3"/>
+    <circle cx="160" cy="400" r="3"/>
+    <circle cx="240" cy="400" r="3"/>
+    <circle cx="320" cy="400" r="3"/>
+    <circle cx="400" cy="400" r="3"/>
+    <circle cx="480" cy="400" r="3"/>
+    <circle cx="80"  cy="480" r="3"/>
+    <circle cx="160" cy="480" r="3"/>
+    <circle cx="240" cy="480" r="3"/>
+    <circle cx="320" cy="480" r="3"/>
+    <circle cx="400" cy="480" r="3"/>
+    <circle cx="480" cy="480" r="3"/>
+  </g>
+
+  <!-- Connection lines -->
+  <g stroke="#00FF85" stroke-width="3" opacity="0.35" fill="none">
+    <!-- Internet → WAF -->
+    <line x1="90"  y1="256" x2="180" y2="200"/>
+    <!-- WAF → LB -->
+    <line x1="200" y1="190" x2="256" y2="256"/>
+    <!-- LB → Compute top -->
+    <line x1="270" y1="256" x2="330" y2="186"/>
+    <!-- LB → Compute bottom -->
+    <line x1="270" y1="256" x2="330" y2="326"/>
+    <!-- Compute → DB -->
+    <line x1="360" y1="180" x2="420" y2="200"/>
+    <line x1="360" y1="330" x2="420" y2="310"/>
+  </g>
+
+  <!-- Glowing connection lines (bright) -->
+  <g stroke="#00FF85" stroke-width="2" opacity="0.7" fill="none">
+    <line x1="90"  y1="256" x2="180" y2="200"/>
+    <line x1="200" y1="190" x2="256" y2="256"/>
+  </g>
+
+  <!-- Internet node (cyan box) -->
+  <rect x="40" y="226" width="56" height="60" rx="6" fill="#111" stroke="#00ffff" stroke-width="2.5" opacity="0.9"/>
+  <text x="68" y="263" text-anchor="middle" fill="#00ffff" font-family="monospace" font-size="11" font-weight="bold">NET</text>
+
+  <!-- WAF node (purple square) -->
+  <rect x="176" y="165" width="44" height="44" rx="5" fill="#a855f7" opacity="0.9"/>
+  <text x="198" y="192" text-anchor="middle" fill="#fff" font-family="monospace" font-size="10" font-weight="bold">FW</text>
+
+  <!-- Load Balancer (blue square) -->
+  <rect x="232" y="232" width="44" height="44" rx="5" fill="#3b82f6" opacity="0.9"/>
+  <text x="254" y="259" text-anchor="middle" fill="#fff" font-family="monospace" font-size="10" font-weight="bold">LB</text>
+
+  <!-- Compute top (orange circle) -->
+  <circle cx="348" cy="184" r="24" fill="#f97316" opacity="0.9"/>
+  <text x="348" y="189" text-anchor="middle" fill="#fff" font-family="monospace" font-size="9" font-weight="bold">CPU</text>
+
+  <!-- Compute bottom (orange circle) -->
+  <circle cx="348" cy="328" r="24" fill="#f97316" opacity="0.85"/>
+  <text x="348" y="333" text-anchor="middle" fill="#fff" font-family="monospace" font-size="9" font-weight="bold">CPU</text>
+
+  <!-- DB top (red rect) -->
+  <rect x="400" y="174" width="40" height="40" rx="4" fill="#dc2626" opacity="0.9"/>
+  <text x="420" y="199" text-anchor="middle" fill="#fff" font-family="monospace" font-size="9" font-weight="bold">DB</text>
+
+  <!-- DB bottom (red rect) -->
+  <rect x="400" y="294" width="40" height="40" rx="4" fill="#dc2626" opacity="0.85"/>
+  <text x="420" y="319" text-anchor="middle" fill="#fff" font-family="monospace" font-size="9" font-weight="bold">DB</text>
+
+  <!-- Moving request packet (cyan dot on wire) -->
+  <circle cx="145" cy="222" r="6" fill="#22d3ee" opacity="0.95">
+    <animate attributeName="cx" values="90;200" dur="2s" repeatCount="indefinite"/>
+    <animate attributeName="cy" values="256;190" dur="2s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0;1;1;0" dur="2s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- Moving request packet 2 (orange dot) -->
+  <circle cx="220" cy="224" r="5" fill="#fb923c" opacity="0.9">
+    <animate attributeName="cx" values="200;330" dur="2.5s" begin="0.8s" repeatCount="indefinite"/>
+    <animate attributeName="cy" values="190;186" dur="2.5s" begin="0.8s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0;1;1;0" dur="2.5s" begin="0.8s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- Title text -->
+  <text x="256" y="455" text-anchor="middle" fill="#38bdf8"
+        font-family="'Share Tech Mono',monospace" font-size="28" font-weight="bold" letter-spacing="4">
+    SERVER
+  </text>
+  <text x="256" y="490" text-anchor="middle" fill="#475569"
+        font-family="'Share Tech Mono',monospace" font-size="13" letter-spacing="6">
+    SURVIVAL
+  </text>
+</svg>

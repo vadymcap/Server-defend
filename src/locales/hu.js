@@ -392,5 +392,17 @@ const HU_TRANSLATIONS = {
     "event_cloud_price_surge": "Felhőárak megugrása",
     "event_db_maintenance": "AB-karbantartás",
     "event_dns_issues": "DNS-problémák",
-    "in": "múlva"
+    "in": "múlva",
+    "sound_settings": "Hang beállítások",
+    "sound_master": "Fő",
+    "sound_music": "Zene",
+    "sound_ui": "UI hang",
+    "sound_events": "Események",
+    "sound_gameplay": "Játékmenet",
+    "sound_mute_all": "Elnémít mindent",
+    "sound_unmute_all": "Visszakapcsol mindent",
+    "sound_on": "BE",
+    "sound_off": "KI",
+    "sound_label": "HANG",
+    "mlops_mode": "MLOps mód",
 };

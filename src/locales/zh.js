@@ -446,5 +446,17 @@ const ZH_TRANSLATIONS = {
     "tip_apigw": "添加API网关以在流量高峰时优雅降级",
     "tip_nosql": "使用NoSQL加速READ/WRITE，保留SQL处理SEARCH查询",
     "apigw_desc_short": "限制流量速率 ($70)",
-    "nosql_desc_short": "快速读写数据库 ($80)"
+    "nosql_desc_short": "快速读写数据库 ($80)",
+    "sound_settings": "音效设置",
+    "sound_master": "总音量",
+    "sound_music": "音乐",
+    "sound_ui": "界面",
+    "sound_events": "事件",
+    "sound_gameplay": "游戏",
+    "sound_mute_all": "静音所有",
+    "sound_unmute_all": "取消静音所有",
+    "sound_on": "开启",
+    "sound_off": "关闭",
+    "sound_label": "音量",
+    "mlops_mode": "MLOps 模式",
 };

@@ -390,5 +390,17 @@ const KO_TRANSLATIONS = {
     "tip_nosql": "READ/WRITE에는 NoSQL을 사용하고 SEARCH 쿼리에는 SQL을 유지하세요",
     "apigw_desc_short": "트래픽 속도 제한 ($70)",
     "nosql_desc_short": "빠른 READ/WRITE DB ($80)",
-    "max": "최대"
+    "max": "최대",
+    "sound_settings": "사운드 설정",
+    "sound_master": "마스터 볼륨",
+    "sound_music": "음악",
+    "sound_ui": "UI",
+    "sound_events": "이벤트",
+    "sound_gameplay": "게임플레이",
+    "sound_mute_all": "모두 음소거",
+    "sound_unmute_all": "모두 음소거 해제",
+    "sound_on": "켬",
+    "sound_off": "끔",
+    "sound_label": "볼륨",
+    "mlops_mode": "MLOps 모드",
 };

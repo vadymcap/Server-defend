@@ -392,5 +392,17 @@ const RU_TRANSLATIONS = {
     "event_cloud_price_surge": "Скачок цен в облаке",
     "event_db_maintenance": "Обслуживание БД",
     "event_dns_issues": "Проблемы с DNS",
-    "in": "через"
+    "in": "через",
+    "sound_settings": "Аудио настройки",
+    "sound_master": "Мастер",
+    "sound_music": "Музыка",
+    "sound_ui": "Интерфейс",
+    "sound_events": "События",
+    "sound_gameplay": "Геймплей",
+    "sound_mute_all": "Заглушить всё",
+    "sound_unmute_all": "Включить всё",
+    "sound_on": "ВКЛ",
+    "sound_off": "ВЫКЛ",
+    "sound_label": "ЗВУК",
+    "mlops_mode": "MLOps режим",
 };

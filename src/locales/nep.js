@@ -438,5 +438,17 @@ const NE_TRANSLATIONS = {
     "tip_apigw": "ट्राफिक स्पाइकको समयमा सुन्दर गिरावटको लागि API गेटवे थप्नुहोस्",
     "tip_nosql": "छिटो READ/WRITE को लागि NoSQL प्रयोग गर्नुहोस्, SEARCH प्रश्नहरूको लागि SQL राख्नुहोस्",
     "apigw_desc_short": "ट्राफिक दर सीमित गर्छ ($70)",
-    "nosql_desc_short": "छिटो READ/WRITE DB ($80)"
+    "nosql_desc_short": "छिटो READ/WRITE DB ($80)",
+    "sound_settings": "ध्वनि सेटिङहरू",
+    "sound_master": "मास्टर",
+    "sound_music": "संगीत",
+    "sound_ui": "यूआई",
+    "sound_events": "घटनाहरू",
+    "sound_gameplay": "गेमप्ले",
+    "sound_mute_all": "सबै म्यूट गर्नुहोस्",
+    "sound_unmute_all": "सबै अम्यूट गर्नुहोस्",
+    "sound_on": "ON",
+    "sound_off": "OFF",
+    "sound_label": "VOLUME",
+    "mlops_mode": "MLOps मोड",
 };

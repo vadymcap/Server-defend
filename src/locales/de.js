@@ -438,5 +438,17 @@ const DE_TRANSLATIONS = {
     "tip_apigw": "API Gateway hinzufügen für sanfte Degradierung bei Traffic-Spitzen",
     "tip_nosql": "NoSQL für schnelleres READ/WRITE nutzen, SQL für SEARCH behalten",
     "apigw_desc_short": "Drosselt Datenverkehr ($70)",
-    "nosql_desc_short": "Schnelle READ/WRITE DB ($80)"
+    "nosql_desc_short": "Schnelle READ/WRITE DB ($80)",
+    "sound_settings": "Töneinstellungen",
+    "sound_master": "Master",
+    "sound_music": "Musik",
+    "sound_ui": "UI",
+    "sound_events": "Ereignisse",
+    "sound_gameplay": "Gameplay",
+    "sound_mute_all": "Alle stummschalten",
+    "sound_unmute_all": "Alle aktivieren",
+    "sound_on": "AN",
+    "sound_off": "AUS",
+    "sound_label": "LÄUTERUNG",
+    "mlops_mode": "MLOps-Modus",
 };

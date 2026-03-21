@@ -447,5 +447,17 @@ const PT_BR_TRANSLATIONS = {
     "tip_apigw": "Adicione API Gateway para degradação suave durante picos de tráfego",
     "tip_nosql": "Use NoSQL para READ/WRITE mais rápido, mantenha SQL para consultas SEARCH",
     "apigw_desc_short": "Limita Taxa de Tráfego ($70)",
-    "nosql_desc_short": "BD Rápida READ/WRITE ($80)"
+    "nosql_desc_short": "BD Rápida READ/WRITE ($80)",
+    "sound_settings": "Configurações de Som",
+    "sound_master": "Geral",
+    "sound_music": "úsica",
+    "sound_ui": "Interface",
+    "sound_events": "Eventos",
+    "sound_gameplay": "Jogabilidade",
+    "sound_mute_all": "MUTE",
+    "sound_unmute_all": "UNMUTE",
+    "sound_on": "ON",
+    "sound_off": "OFF",
+    "sound_label": "VOLUME",
+    "mlops_mode": "Modo MLOps",
 };
