@@ -1,0 +1,13 @@
+{
+  "name": "server-defend-rbx-workspace",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "places/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "watch:main": "npm run watch --workspace places/main",
+    "watch:game": "npm run watch --workspace places/game"
+  }
+}

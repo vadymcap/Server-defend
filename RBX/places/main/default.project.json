@@ -1,0 +1,50 @@
+{
+  "name": "ServerDefendMainPlace",
+  "tree": {
+    "$className": "DataModel",
+
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+      "TS": {
+        "$path": "out/shared"
+      }
+    },
+
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+        "TS": {
+          "$path": "out/client"
+        }
+      }
+    },
+
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+      "TS": {
+        "$path": "out/server"
+      }
+    },
+
+    "Workspace": {
+      "$className": "Workspace",
+      "$properties": {
+        "Gravity": 196.2,
+        "StreamingEnabled": false
+      }
+    },
+
+    "SoundService": {
+      "$className": "SoundService",
+      "MenuBGM": {
+        "$className": "Sound",
+        "$properties": {
+          "SoundId": "rbxassetid://0",
+          "Volume": 0.2,
+          "Looped": true
+        }
+      }
+    }
+  }
+}

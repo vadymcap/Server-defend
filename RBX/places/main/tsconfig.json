@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "typeRoots": ["node_modules/@rbxts"],
+    "types": ["@rbxts/types"],
+    "strict": true,
+    "target": "ESNext",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "experimentalDecorators": true,
+    "jsx": "react",
+    "jsxFactory": "Roact.createElement",
+    "outDir": "out",
+    "rootDir": "src",
+    "baseUrl": "src"
+  },
+  "include": ["src/**/*"]
+}
