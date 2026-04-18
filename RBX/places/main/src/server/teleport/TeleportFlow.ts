@@ -4,8 +4,10 @@
 import { TeleportService } from "@rbxts/services";
 import type { TeleportData } from "@server-defend/shared/types/GameTypes";
 
-// ⚠️ Assumption: replace with your actual Game Place ID before publishing.
-const GAME_PLACE_ID = 0;
+// ⚠️ Assumption: replace GAME_PLACE_ID with your published Game Place ID.
+// A value of 0 is a guard that prevents accidental teleports during development.
+const GAME_PLACE_ID: number =
+  (game.GetService("RunService").IsStudio() ? 0 : 0); // TODO: set real place ID
 
 /**
  * Teleports a single player to the Game Place, passing TeleportData via
@@ -13,9 +15,12 @@ const GAME_PLACE_ID = 0;
  * TeleportService:GetLocalPlayerTeleportData().
  */
 export function teleportToGamePlace(player: Player, data: TeleportData): void {
+  if (GAME_PLACE_ID === 0) {
+    warn("[TeleportFlow] GAME_PLACE_ID is 0 – teleport skipped. Set a real place ID.");
+    return;
+  }
   const options = TeleportService.CreateTeleportOptions();
   options.SetTeleportData(data as unknown as object);
-  options.ReservedServerAccessCode = undefined as unknown as string;
 
   const [ok, err] = pcall(() => {
     TeleportService.TeleportAsync(GAME_PLACE_ID, [player], options);

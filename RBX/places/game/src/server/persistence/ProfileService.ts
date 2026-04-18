@@ -30,6 +30,7 @@ const DEFAULT_DATA: PlayerProfileData = {
 export interface PlayerProfile {
   data: PlayerProfileData;
   player: Player;
+  endSession(): void;
 }
 
 const activeProfiles = new Map<number, PlayerProfile>();
@@ -46,13 +47,17 @@ export function loadProfile(player: Player): PlayerProfile {
 
   if (profile === undefined) {
     player.Kick("Failed to load data. Please rejoin.");
-    return { data: DEFAULT_DATA, player };
+    return { data: DEFAULT_DATA, player, endSession: () => {} };
   }
 
   profile.AddUserId(player.UserId);
   profile.Reconcile();
 
-  const entry: PlayerProfile = { data: profile.Data, player };
+  const entry: PlayerProfile = {
+    data: profile.Data,
+    player,
+    endSession: () => profile.EndSession(),
+  };
   activeProfiles.set(player.UserId, entry);
 
   player.AncestryChanged.Connect(() => {
@@ -66,7 +71,11 @@ export function loadProfile(player: Player): PlayerProfile {
 }
 
 export function saveProfile(player: Player): void {
-  activeProfiles.delete(player.UserId);
+  const entry = activeProfiles.get(player.UserId);
+  if (entry !== undefined) {
+    entry.endSession();
+    activeProfiles.delete(player.UserId);
+  }
 }
 
 export function getProfile(player: Player): PlayerProfile | undefined {

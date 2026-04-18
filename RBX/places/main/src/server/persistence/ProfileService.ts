@@ -32,6 +32,7 @@ const DEFAULT_DATA: PlayerProfileData = {
 export interface PlayerProfile {
   data: PlayerProfileData;
   player: Player;
+  endSession(): void;
 }
 
 // In-memory cache keyed by UserId
@@ -50,13 +51,17 @@ export function loadProfile(player: Player): PlayerProfile {
   if (profile === undefined) {
     player.Kick("Failed to load data. Please rejoin.");
     // Return a dummy so callers don't crash
-    return { data: DEFAULT_DATA, player };
+    return { data: DEFAULT_DATA, player, endSession: () => {} };
   }
 
   profile.AddUserId(player.UserId);
   profile.Reconcile();
 
-  const entry: PlayerProfile = { data: profile.Data, player };
+  const entry: PlayerProfile = {
+    data: profile.Data,
+    player,
+    endSession: () => profile.EndSession(),
+  };
   activeProfiles.set(player.UserId, entry);
 
   player.AncestryChanged.Connect(() => {
@@ -72,6 +77,6 @@ export function loadProfile(player: Player): PlayerProfile {
 export function saveProfile(player: Player): void {
   const entry = activeProfiles.get(player.UserId);
   if (entry === undefined) return;
-  // EndSession triggers auto-save; explicit manual save not needed.
+  entry.endSession();
   activeProfiles.delete(player.UserId);
 }

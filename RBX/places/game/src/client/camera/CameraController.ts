@@ -127,15 +127,8 @@ export class CameraController {
         .add(forward.mul(panZ));
     }
 
-    // Reset shortcut
-    if (UserInputService.IsKeyDown(Enum.KeyCode.R)) {
-      this.reset();
-    }
+    // Reset shortcut (handled via InputBegan for single-fire; skip here)
 
-    // Toggle view shortcut
-    if (UserInputService.IsKeyDown(Enum.KeyCode.T)) {
-      // Debounce via simple flag would be needed; omitted for brevity
-    }
 
     // Smooth follow
     const alpha = clamp(this.config.smoothness * dt, 0, 1);
@@ -172,6 +165,10 @@ export class CameraController {
 
     if (input.KeyCode === Enum.KeyCode.T) {
       this.toggleView();
+    }
+
+    if (input.KeyCode === Enum.KeyCode.R) {
+      this.reset();
     }
   }
 
