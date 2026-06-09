@@ -1,0 +1,23 @@
+{
+  "name": "@server-defend/main-place",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "rbxtsc",
+    "watch": "rbxtsc -w"
+  },
+  "devDependencies": {
+    "roblox-ts": "^2.3.0",
+    "typescript": "^5.4.5",
+    "@rbxts/types": "^1.0.843"
+  },
+  "dependencies": {
+    "@server-defend/shared": "*",
+    "@rbxts/roact": "^1.4.4",
+    "@rbxts/roact-hooked": "^0.3.6",
+    "@rbxts/net": "^3.3.0",
+    "@rbxts/services": "^1.5.4",
+    "@rbxts/profilestore": "^1.0.7",
+    "@rbxts/t": "^3.1.1"
+  }
+}
